@@ -1,0 +1,3043 @@
+# ------------------------------------------------------------------------------------------
+# Impression du contenu du fichier de commandes à exécuter :
+# ------------------------------------------------------------------------------------------
+#
+#	Modelisation thermique 
+#	BRUN, ROUX
+#
+
+DEBUT(PAR_LOT='NON',);
+
+ArrG	= ('Sub_1','Sub_2','Sub_3','Sub_4','Ailes','Bride','Cordon_1','Cordon_3','Cordon_2','Cordon_4',)
+Xo		= (		2.25,	97.75,	97.75,	2.25,)
+Yo		= (		97.75,	97.75,	2.25,	2.25,)
+Zo		= (		-0.75,	-0.75,	-0.75,	-0.75,)
+tf		= (0.,	60.,	120.,	180.,	240.,)
+
+# Parametres de soudage
+v         = 200./60.	   	# Vitesse de soudage en mm/s
+eta       = 0.8				# Coef de soudage TIG
+U         = 10.    			# en V
+I         = 65.    			# en A
+tm        = 2.     			# temps de mainitien en s
+ts        = 97/v+tm		# temps de soudage en s
+
+# Variable pour forme de flux de chaleur (goldak)
+ang       = 45./180*pi    	# Angle pour la rotation en rad
+a         = 1.4     		# en mm
+b         = 1.5     		# en mm
+cf        = 2.     			# en mm
+cr        = 3.     			# en mm
+ff        = 1.4				# en mm
+fr        = 0.6				# en mm
+Qw        = eta*U*I			# en W
+Coeff     = 6*sqrt(3)*ff*Qw/(a*b*cf*pi*sqrt(pi))
+Coefr     = 6*sqrt(3)*fr*Qw/(a*b*cr*pi*sqrt(pi))
+
+MAT		= {}
+LIST	= {}
+gold	= {}
+FLUT	= {}
+
+for i in range(1, 5):
+	
+	# Definition des goldak
+	if   i == 1:
+		def goldakHeatSource(X, Y, Z, t):
+			yy = cos(ang)*(Y-Yo[i-1])-sin(ang)*(Z-Zo[i-1])
+			zz = sin(ang)*(Y-Yo[i-1])+cos(ang)*(Z-Zo[i-1])
+			# Avant le temps de maintien
+			if t < tm+tf[i-1]:
+				Qfi = Coeff*exp(-3.*(((X-Xo[i-1])/cf)**2+(yy/a)**2+(zz/b)**2))
+				Qri = Coefr*exp(-3.*(((X-Xo[i-1])/cr)**2+(yy/a)**2+(zz/b)**2))
+				# Rear
+				if X < Xo[i-1]:
+					Q = Qri
+				# Front
+				else:
+					Q = Qfi
+			# AprÃ¨s le temps de maintien	
+			else:
+				Qf = Coeff*exp(-3.*(((X-v*((t-tf[i-1])-tm)-Xo[i-1])/cf)**2+(yy/a)**2+(zz/b)**2))
+				Qr = Coefr*exp(-3.*(((X-v*((t-tf[i-1])-tm)-Xo[i-1])/cr)**2+(yy/a)**2+(zz/b)**2))
+				# Rear
+				if X < v*((t-tf[i-1])-tm)+Xo[i-1]:
+					Q = Qr
+				# Front
+				else:
+					Q = Qf
+			if t > ts+tf[i-1]:
+				Q = 0.
+			return Q
+	
+	elif i == 3:
+		def goldakHeatSource(X, Y, Z, t):
+			yy = cos(ang)*(Y-Yo[i-1])+sin(ang)*(Z-Zo[i-1])
+			zz = -sin(ang)*(Y-Yo[i-1])+cos(ang)*(Z-Zo[i-1])
+			# Avant le temps de maintien	
+			if t < tm+tf[i-1]:
+				Qfi = Coeff*exp(-3.*(((X-Xo[i-1])/cf)**2+(yy/a)**2+(zz/b)**2))
+				Qri = Coefr*exp(-3.*(((X-Xo[i-1])/cr)**2+(yy/a)**2+(zz/b)**2))
+				# Rear
+				if X > Xo[i-1]:
+					Q = Qri
+				# Front
+				else:
+					Q = Qfi
+			# AprÃ¨s le temps de maintien
+			else:
+				Qf = Coeff*exp(-3.*(((X+v*((t-tf[i-1])-tm)-Xo[i-1])/cf)**2+(yy/a)**2+(zz/b)**2))
+				Qr = Coefr*exp(-3.*(((X+v*((t-tf[i-1])-tm)-Xo[i-1])/cr)**2+(yy/a)**2+(zz/b)**2))
+				# Rear
+				if X > v*((t-tf[i-1])-tm)+Xo[i-1]:
+					Q = Qr
+				# Front
+				else:
+					Q = Qf
+			if t > ts+tf[i-1]:
+				Q = 0.
+			return Q
+	
+	elif i == 2:
+		def goldakHeatSource(X, Y, Z, t):
+			xx = cos(ang)*(X-Xo[i-1])-sin(ang)*(Z-Zo[i-1])
+			zz = sin(ang)*(X-Xo[i-1])+cos(ang)*(Z-Zo[i-1])
+			# Avant le temps de maintien
+			if t < tm+tf[i-1]:
+				Qfi = Coeff*exp(-3.*(((Y-Yo[i-1])/cf)**2+(xx/a)**2+(zz/b)**2))
+				Qri = Coefr*exp(-3.*(((Y-Yo[i-1])/cr)**2+(xx/a)**2+(zz/b)**2))
+				# Rear
+				if Y > Yo[i-1]:
+					Q = Qri
+				# Front
+				else:
+					Q = Qfi
+			# AprÃ¨s le temps de maintien
+			else:
+				Qf = Coeff*exp(-3.*(((Y+v*((t-tf[i-1])-tm)-Yo[i-1])/cf)**2+(xx/a)**2+(zz/b)**2))
+				Qr = Coefr*exp(-3.*(((Y+v*((t-tf[i-1])-tm)-Yo[i-1])/cr)**2+(xx/a)**2+(zz/b)**2))
+				# Rear
+				if Y > v*((t-tf[i-1])-tm)+Yo[i-1]:
+					Q = Qr
+				# Front
+				else:
+					Q = Qf
+			if t > ts+tf[i-1]:
+		            Q = 0.
+			return Q
+
+	elif i == 4:
+		def goldakHeatSource(X, Y, Z, t):
+			xx = cos(ang)*(X-Xo[i-1])+sin(ang)*(Z-Zo[i-1])
+			zz = -sin(ang)*(X-Xo[i-1])+cos(ang)*(Z-Zo[i-1])
+			# Avant le temps de maintien
+			if t < tm+tf[i-1]:
+				Qfi = Coeff*exp(-3.*(((Y-Yo[i-1])/cf)**2+(xx/a)**2+(zz/b)**2))
+				Qri = Coefr*exp(-3.*(((Y-Yo[i-1])/cr)**2+(xx/a)**2+(zz/b)**2))
+				# Rear
+				if Y < Yo[i-1]:
+					Q = Qri
+				# Front
+				else:
+					Q = Qfi
+			# AprÃ¨s le temps de maintien
+			else:
+				Qf = Coeff*exp(-3.*(((Y-v*((t-tf[i-1])-tm)-Yo[i-1])/cf)**2+(xx/a)**2+(zz/b)**2))
+				Qr = Coefr*exp(-3.*(((Y-v*((t-tf[i-1])-tm)-Yo[i-1])/cr)**2+(xx/a)**2+(zz/b)**2))
+				# Rear
+				if Y < v*((t-tf[i-1])-tm)+Yo[i-1]:
+					Q = Qr
+				# Front
+				else:
+					Q = Qf
+			if t > ts+tf[i-1]:
+		            Q = 0.
+			return Q
+
+	# Lire le maillage
+	if i == 1:
+		MA = LIRE_MAILLAGE(UNITE  = 20,);
+
+	# Definition des materiaux - Les unites ont ete bascule pour que l unite de longueur soit le mm
+	if i == 1:
+		INCO625=DEFI_MATERIAU(THER=_F(LAMBDA=0.0165,RHO_CP=0.0039,),);
+		AIR=DEFI_MATERIAU(THER=_F(LAMBDA=2.62e-5,RHO_CP=1.2048e-5,),);
+
+	# Definition des instants de calcul pour une analyse non lineraire
+	LIST[i]=DEFI_LIST_REEL(DEBUT=tf[i-1],INTERVALLE=(_F(JUSQU_A=tf[i],NOMBRE=120,),),);
+
+	# Affectation du modele de thermique
+	if i == 1:
+		MODELE=AFFE_MODELE(MAILLAGE=MA,AFFE=_F(TOUT='OUI',PHENOMENE='THERMIQUE',MODELISATION='3D',),);
+
+	# Affectation du materiau au group
+	if i == 4:
+		MAT[i]=AFFE_MATERIAU(MAILLAGE=MA,
+		                  AFFE=(_F(GROUP_MA = (ArrG[:]),MATER=INCO625,),),);
+	else:
+		MAT[i]=AFFE_MATERIAU(MAILLAGE=MA,
+		                  AFFE=(_F(GROUP_MA = (ArrG[:i+6]),MATER=INCO625,),
+		                        _F(GROUP_MA = (ArrG[i+6:]),MATER=AIR,),),);
+
+	# Voir ouvrage simulation du soudage pour plus de precision Goldak ou Bergheau
+	gold[i] = FORMULE(VALE='goldakHeatSource(X,Y,Z,INST)',goldakHeatSource=goldakHeatSource,NOM_PARA=('X','Y','Z','INST',),);
+
+	# La source de chaleur est appliquee sur la partie du maillage en interaction avec l'arc.
+	FLUT[i]=AFFE_CHAR_THER_F(MODELE=MODELE,SOURCE=_F(GROUP_MA=(ArrG[i+5]),SOUR = gold[i],),);
+
+	# Introduction de l echange entre l air et la plaque q = coef_h ( T_piece - Temp_ext )
+	if i == 1:
+		ECH=AFFE_CHAR_THER(MODELE=MODELE,ECHANGE=_F(GROUP_MA=('Convection'),COEF_H   = 20.0e-6,TEMP_EXT = 20.0,),);
+	
+	# Calcul thermique transitoire les resultats sont dans l objet TEMP
+	if i == 1:
+		TEMP=THER_LINEAIRE(MODELE=MODELE,
+		                   CHAM_MATER=MAT[i],
+		                   EXCIT=(_F(CHARGE=FLUT[i],),),
+		                   INCREMENT=_F(LIST_INST=LIST[i],),
+		                   ETAT_INIT=_F(VALE=20.E0,),
+		                   SOLVEUR=_F(METHODE='MULT_FRONT',
+		                              RENUM='METIS',
+		                              NPREC=8,
+		                              STOP_SINGULIER='OUI',),);
+	
+	else :
+		TEMP=THER_LINEAIRE(reuse= TEMP,
+						   MODELE=MODELE,
+		                   CHAM_MATER=MAT[i],
+		                   EXCIT=(_F(CHARGE=FLUT[i],),),
+		                   INCREMENT=_F(LIST_INST=LIST[i],),
+		                   ETAT_INIT=_F(EVOL_THER = TEMP,),
+		                   SOLVEUR=_F(METHODE='MULT_FRONT',
+		                              RENUM='METIS',
+		                              NPREC=8,
+		                              STOP_SINGULIER='OUI',),);
+	
+# Impression des resultats
+IMPR_RESU(FORMAT='MED',RESU=_F(RESULTAT=TEMP,GROUP_MA=(ArrG[:]),NOM_CHAM='TEMP',),);
+
+FIN();
+
+# ------------------------------------------------------------------------------------------
+
+  Ouverture en écriture du fichier ./vola.1
+
+ <INFO> Démarrage de l'exécution.
+                                                                                   
+   ___         _         _       _            __      ___         _                
+  / __|___  __| |___    /_\   __| |_ ___ _ _  \ \    / (_)_ _  __| |_____ __ _____ 
+ | (__/ _ \/ _` / -_)  / _ \ (_-<  _/ -_) '_|  \ \/\/ /| | ' \/ _` / _ \ V  V (_-< 
+  \___\___/\__,_\___| /_/ \_\/__/\__\___|_|     \_/\_/ |_|_||_\__,_\___/\_/\_//__/ 
+                                                 https://code-aster-windows.com    
+                                                                                
+                                                                                
+              -- CODE_ASTER -- VERSION:  EXPLOITATION (stable) --               
+                                                                                
+                       Modified 14.8.0 version 12/11/2021                       
+                    the revision e6923b03f298 - branch  v14                     
+                        Copyright EDF R & D 1991 - 2024                         
+                                                                                
+                    Exécution of:  Mon May 13 19:57:02 2024                     
+                        Name of the machine:  MSI2021-21                        
+                               Structure:  64bit                                
+                                                                                
+                                CPU type:  AMD64                                
+                  Operating system:  Windows-10-10.0.19041-SP0                  
+                     Language of the messages:  en (cp1252)                     
+                                                                                
+                             Python version: 3.7.2                              
+                             NumPy version: 1.16.1                              
+   
+   !------------------------------------------------------------------------!
+   ! <A> <SUPERVIS2_2>                                                      !
+   !                                                                        !
+   !  You use an old version of Code_Aster.                                 !
+   !                                                                        !
+   !  By upgrading your version, you will profit from the last improvements !
+   !  made to the code                                                      !
+   ! since 15 month.                                                        !
+   !  If you have private developments, you are likely to have an important !
+   !  work of bearing if you do not follow the                              !
+   ! upgraded ones.                                                         !
+   !                                                                        !
+   !                                                                        !
+   ! This is a warning. If you do not understand the meaning of this        !
+   !  warning, you can obtain unexpected results!                           !
+   !------------------------------------------------------------------------!
+   
+                             Parallelism MPI: idle                              
+                           OpenMP parallelism: Nombre                           
+                          credit of processes used:  1                          
+                      Version of the HDF5 library : 1.10.3                      
+                       Version of the MED library : 4.1.0                       
+                       Librairie MFront : non disponible                        
+                          MUMPS library version: 5.1.2                          
+                          PETSc library: not available                          
+                     Version of the SCOTCH library : 6.0.4                      
+
+                 Mémoire limite pour l'exécution : 10490.00 Mo                  
+                   consommée par l'initialisation : 44.34 Mo                    
+                                                                                
+                  par les objets du jeu de commandes : 0.00 Mo                  
+                reste pour l'allocation dynamique : 10441.34 Mo                 
+                   Cut limiting files of exchange:  48.00 Go                    
+                                                                                
+
+.. __stg1_txt6
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0001 Concept of the type:  -
+  # ------------------------------------------------------------------------------------------
+  DEBUT(PAR_LOT='NON',
+        IMPR_MACRO='NON',
+        DEBUG=_F(JXVERI='NON',
+                 SDVERI='NON',
+                 JEVEUX='NON',
+                 HIST_ETAPE='NON',),
+        MESURE_TEMPS=_F(NIVE_DETAIL=1,
+                        MOYENNE='NON',),
+        MEMOIRE=_F(TAILLE_BLOC=800.0,
+                   TAILLE_GROUP_ELEM=1000,),
+        RESERVE_CPU=_F(BORNE=900,),
+        LANG='EN',
+        INFO=1,)
+
+                                                                                   
+   ___         _         _       _            __      ___         _                
+  / __|___  __| |___    /_\   __| |_ ___ _ _  \ \    / (_)_ _  __| |_____ __ _____ 
+ | (__/ _ \/ _` / -_)  / _ \ (_-<  _/ -_) '_|  \ \/\/ /| | ' \/ _` / _ \ V  V (_-< 
+  \___\___/\__,_\___| /_/ \_\/__/\__\___|_|     \_/\_/ |_|_||_\__,_\___/\_/\_//__/ 
+                                                 https://code-aster-windows.com    
+   
+   !--------------------------------------------------!
+   ! <I> <SUPERVIS_41>                                !
+   !                                                  !
+   ! The version 14.8.0 was modified by 53 revisions. !
+   !--------------------------------------------------!
+   
+   
+   !---------------------------------------------------------------------------!
+   ! <A> <SUPERVIS_1>                                                          !
+   !                                                                           !
+   !  The use of key word PAR_LOT='NON' allows to reach in reading and writing !
+   !  the contents of the Aster concepts. So your study is                     !
+   ! excluded from the qualified                                               !
+   !  perimeter of Code_Aster since all its stages cannot be certified.        !
+   !                                                                           !
+   !  Advices:                                                                 !
+   !  - There is no                                                            !
+   ! particularly risk of false result' except if your                         !
+   !  programming introduces it.                                               !
+   !  - Distinguish computation itself (which must                             !
+   ! undoubtedly pass in PAR_LOT='OUI')                                        !
+   !  postprocessings (which would require mode PAR_LOT='NON') which can       !
+   !  be realized in POURSUITE.                                                !
+   !                                                                           !
+   !                                                                           !
+   ! This is a warning. If you do not understand the meaning of this           !
+   !  warning, you can obtain unexpected results!                              !
+   !---------------------------------------------------------------------------!
+   
+
+ Initial value of maximum time CPU = 9000 second
+ Valeur of the maximum time CPU placed to the orders = 8100 second
+ Réserve CPU
+envisaged = 900 seconds 
+
+  Ouverture en écriture du fichier ./glob.1
+
+  Ouverture en écriture du fichier ./vola.1
+
+  Ouverture en lecture du fichier C:\Users\flavien.roux\AppData\Local\code_aster\v2021\14.8\lib\aster/elem.1
+
+     Nom de la base                          :  ELEMBASE
+     Créée avec la version                   :  14.08.00
+     Nombre
+d'enregistrements utilisés       :  43
+     Nombre d'enregistrements maximum        :  512
+     Longueur d'enregistrement (octets)  
+   :  819200
+     Nombre d'identificateurs utilisés       :  123
+     Taille maximum du répertoire            :  300
+    
+Pourcentage d'utilisation du répertoire :  41 %
+
+  Ouverture en lecture du fichier C:\Users\flavien.roux\AppData\Local\code_aster\v2021\14.8\lib\aster/elem.1
+
+
+     Nom de la base                          :  ELEMBASE
+     Nombre d'enregistrements utilisés       :  43
+     Nombre
+d'enregistrements maximum        :  512
+     Longueur d'enregistrement (octets)      :  819200
+     Nombre total d'accès en lecture 
+       :  60
+     Volume des accès en lecture             :         46.88 Mo.
+     Nombre total d'accès en écriture        :  0
+    
+Volume des accès en écriture            :          0.00 Mo.
+     Nombre d'identificateurs utilisés       :  123
+     Taille maximum
+du répertoire            :  300
+     Pourcentage d'utilisation du répertoire :  41 %
+
+ Second reading of the catalogues of the elements made. 
+
+ End of reading (lasted 0.000000 S.)   
+  # Memory (Mo):     94.92 /     87.15 /     44.29 /     22.92 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0001 user+syst:          0.03S (syst:          0.02S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt156
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0002 Concept of the type:  maillage_sdaster
+  # ------------------------------------------------------------------------------------------
+  MA = LIRE_MAILLAGE(UNITE=20,
+                     INFO_MED=1,
+                     FORMAT='MED',
+                     VERI_MAIL=_F(VERIF='OUI',
+                                  APLAT=1.E-3,),
+                     INFO=1,)
+
+Vérification du maillage.
+
+------------ MAILLAGE MA       - IMPRESSIONS NIVEAU  1 ------------
+
+LU-13-MAI -2024 19:57:02                                                        
+
+NOMBRE DE NOEUDS                       72551
+
+NOMBRE DE MAILLES                     389361
+                              SEG2                16267
+                              TRIA3              145857
+                              TETRA4             227237
+
+NOMBRE DE GROUPES DE MAILLES              11
+                              Cordon_1                           225
+                              Cordon_3                           224
+                              Cordon_2                           220
+                              Cordon_4                           202
+                              Sub_3                             1214
+                              Sub_1                             1249
+                              Sub_4                             1388
+                              Sub_2                             1208
+                              Convection                      145857
+                              Ailes                           215337
+                              Bride                             5970
+
+--------------------------------------------------------------------------------
+
+  # Memory (Mo):    151.41 /    126.52 /     97.31 /     67.05 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0002 user+syst:          0.55S (syst:          0.03S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt160
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0004 Concept of the type:  mater_sdaster
+  # ------------------------------------------------------------------------------------------
+  INCO625 = DEFI_MATERIAU(THER=_F(LAMBDA=0.0165,
+                                  RHO_CP=3.9E-3,),
+                          INFO=1,)
+
+Propriétés définies dans le matériau: THER.
+  # Memory (Mo):    151.41 /    126.71 /     97.31 /     67.05 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0004 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt161
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0005 Concept of the type:  mater_sdaster
+  # ------------------------------------------------------------------------------------------
+  AIR = DEFI_MATERIAU(THER=_F(LAMBDA=2.62E-05,
+                              RHO_CP=1.2048E-05,),
+                      INFO=1,)
+
+Propriétés définies dans le matériau: THER.
+  # Memory (Mo):    151.41 /    126.75 /     97.31 /     67.05 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0005 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt164
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0006 Concept of the type:  listr8_sdaster
+  # ------------------------------------------------------------------------------------------
+  LIST_1 = DEFI_LIST_REEL(DEBUT=0.0,
+                          INTERVALLE=_F(JUSQU_A=60.0,
+                                        NOMBRE=120,),
+                          INFO=1,)
+
+  # Memory (Mo):    151.41 /    126.81 /     97.31 /     67.05 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0006 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt168
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0007 Concept of the type:  modele_sdaster
+  # ------------------------------------------------------------------------------------------
+  MODELE = AFFE_MODELE(MAILLAGE=MA,
+                       AFFE=_F(TOUT='OUI',
+                               PHENOMENE='THERMIQUE',
+                               MODELISATION=('3D', ),),
+                       INFO=1,
+                       DISTRIBUTION=_F(PARTITIONNEUR='METIS',
+                                       METHODE='SOUS_DOMAINE',),
+                       VERI_JACOBIEN='OUI',)
+
+
+Sur les 389361 mailles du maillage MA, on a demandé l'affectation de 389361, on a pu en affecter 373094
+ Modélisation     Type maille  Élément fini     Nombre
+ 3D               TRIA3        THER_FACE3       145857
+ 3D               TETRA4       THER_TETRA4      227237
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):      0.06      0.00      0.00
+  # Memory (Mo):    153.22 /    141.56 /     97.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0007 user+syst:          0.14S (syst:          0.02S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt177
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0008 Concept of the type:  cham_mater
+  # ------------------------------------------------------------------------------------------
+  MAT_1 = AFFE_MATERIAU(MAILLAGE=MA,
+                        AFFE=(_F(GROUP_MA=('Sub_1', 'Sub_2', 'Sub_3', 'Sub_4', 'Ailes', 'Bride', 'Cordon_1'),
+                                 MATER=(INCO625, ),),
+                              _F(GROUP_MA=('Cordon_3', 'Cordon_2', 'Cordon_4'),
+                                 MATER=(AIR, ),),
+                              ),
+                        INFO=1,)
+
+  # Memory (Mo):    153.22 /    145.10 /     97.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0008 user+syst:          0.02S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt180
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0009 Concept of the type:  formule
+  # ------------------------------------------------------------------------------------------
+  gold_1 = FORMULE(VALE='goldakHeatSource(X,Y,Z,INST)',
+                   NOM_PARA=('X', 'Y', 'Z', 'INST'),)
+
+  # Memory (Mo):    153.22 /    145.12 /     97.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0009 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt183
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0010 Concept of the type:  char_ther
+  # ------------------------------------------------------------------------------------------
+  FLUT_1 = AFFE_CHAR_THER_F(MODELE=MODELE,
+                            SOURCE=_F(GROUP_MA=('Cordon_1', ),
+                                      SOUR=gold_1,),
+                            DOUBLE_LAGRANGE='OUI',
+                            INFO=1,)
+
+  # Memory (Mo):    157.14 /    145.25 /     97.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0010 user+syst:          0.02S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt187
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0011 Concept of the type:  char_ther
+  # ------------------------------------------------------------------------------------------
+  ECH = AFFE_CHAR_THER(MODELE=MODELE,
+                       ECHANGE=_F(GROUP_MA=('Convection', ),
+                                  COEF_H=2.E-05,
+                                  TEMP_EXT=20.0,),
+                       DOUBLE_LAGRANGE='OUI',
+                       INFO=1,)
+
+  # Memory (Mo):    204.85 /    151.38 /    147.39 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0011 user+syst:          0.23S (syst:          0.05S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt199
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0012 Concept of the type:  evol_ther
+  # ------------------------------------------------------------------------------------------
+  TEMP = THER_LINEAIRE(MODELE=MODELE,
+                       CHAM_MATER=MAT_1,
+                       EXCIT=_F(CHARGE=FLUT_1,),
+                       ETAT_INIT=_F(VALE=20.0,
+                                    PRECISION=1.E-06,
+                                    CRITERE='RELATIF',),
+                       INCREMENT=_F(LIST_INST=LIST_1,
+                                    PRECISION=1.E-06,),
+                       SOLVEUR=_F(METHODE='MULT_FRONT',
+                                  RENUM='METIS',
+                                  NPREC=8,
+                                  STOP_SINGULIER='OUI',
+                                  ELIM_LAGR='NON',),
+                       PARM_THETA=0.57,
+                       ARCHIVAGE=_F(PRECISION=1.E-06,
+                                    CRITERE='RELATIF',),
+                       )
+
+  Le système linéaire à résoudre a 72551 degrés de liberté:
+   - 72551 sont des degrés de liberté physiques
+     (ils sont portés
+par 72551 noeuds du maillage)
+   - 0 sont les couples de paramètres de Lagrange associés
+     aux 0 relations linéaires dualisées.
+  La matrice est de taille 72551 équations.
+  Elle contient 444160 termes non nuls si elle est symétrique et 815769 termes non nuls
+si elle n'est pas symétrique.
+  Soit un taux de remplissage de   0.015 %.
+  The field of initial temperature is given by a value which is worth   2.000000000000e+01
+
+ Filing of the initial state
+
+ Filing of the fields 
+    Field stored  TEMP at time  0.000000000000e+00 for the sequence number  0
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.000000000000e-01 for the sequence number  1
+NUMERO D'ORDRE:      1 INSTANT:   5.000E-01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.000000000000e+00 for the sequence number  2
+NUMERO D'ORDRE:      2 INSTANT:   1.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.500000000000e+00 for the sequence number  3
+NUMERO D'ORDRE:      3 INSTANT:   1.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.000000000000e+00 for the sequence number  4
+NUMERO D'ORDRE:      4 INSTANT:   2.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.500000000000e+00 for the sequence number  5
+NUMERO D'ORDRE:      5 INSTANT:   2.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.000000000000e+00 for the sequence number  6
+NUMERO D'ORDRE:      6 INSTANT:   3.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.500000000000e+00 for the sequence number  7
+NUMERO D'ORDRE:      7 INSTANT:   3.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.000000000000e+00 for the sequence number  8
+NUMERO D'ORDRE:      8 INSTANT:   4.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.500000000000e+00 for the sequence number  9
+NUMERO D'ORDRE:      9 INSTANT:   4.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.000000000000e+00 for the sequence number  10
+NUMERO D'ORDRE:     10 INSTANT:   5.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.500000000000e+00 for the sequence number  11
+NUMERO D'ORDRE:     11 INSTANT:   5.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.000000000000e+00 for the sequence number  12
+NUMERO D'ORDRE:     12 INSTANT:   6.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.500000000000e+00 for the sequence number  13
+NUMERO D'ORDRE:     13 INSTANT:   6.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.000000000000e+00 for the sequence number  14
+NUMERO D'ORDRE:     14 INSTANT:   7.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.500000000000e+00 for the sequence number  15
+NUMERO D'ORDRE:     15 INSTANT:   7.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.000000000000e+00 for the sequence number  16
+NUMERO D'ORDRE:     16 INSTANT:   8.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.500000000000e+00 for the sequence number  17
+NUMERO D'ORDRE:     17 INSTANT:   8.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.000000000000e+00 for the sequence number  18
+NUMERO D'ORDRE:     18 INSTANT:   9.000E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.500000000000e+00 for the sequence number  19
+NUMERO D'ORDRE:     19 INSTANT:   9.500E+00 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.000000000000e+01 for the sequence number  20
+NUMERO D'ORDRE:     20 INSTANT:   1.000E+01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.050000000000e+01 for the sequence number  21
+NUMERO D'ORDRE:     21 INSTANT:   1.050E+01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.100000000000e+01 for the sequence number  22
+NUMERO D'ORDRE:     22 INSTANT:   1.100E+01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.150000000000e+01 for the sequence number  23
+NUMERO D'ORDRE:     23 INSTANT:   1.150E+01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.200000000000e+01 for the sequence number  24
+NUMERO D'ORDRE:     24 INSTANT:   1.200E+01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.250000000000e+01 for the sequence number  25
+NUMERO D'ORDRE:     25 INSTANT:   1.250E+01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.300000000000e+01 for the sequence number  26
+NUMERO D'ORDRE:     26 INSTANT:   1.300E+01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.350000000000e+01 for the sequence number  27
+NUMERO D'ORDRE:     27 INSTANT:   1.350E+01 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.400000000000e+01 for the sequence number  28
+NUMERO D'ORDRE:     28 INSTANT:   1.400E+01 DUREE MOYENNE:   3.036E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.450000000000e+01 for the sequence number  29
+NUMERO D'ORDRE:     29 INSTANT:   1.450E+01 DUREE MOYENNE:   3.034E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.500000000000e+01 for the sequence number  30
+NUMERO D'ORDRE:     30 INSTANT:   1.500E+01 DUREE MOYENNE:   3.033E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.550000000000e+01 for the sequence number  31
+NUMERO D'ORDRE:     31 INSTANT:   1.550E+01 DUREE MOYENNE:   3.032E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.600000000000e+01 for the sequence number  32
+NUMERO D'ORDRE:     32 INSTANT:   1.600E+01 DUREE MOYENNE:   3.031E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.650000000000e+01 for the sequence number  33
+NUMERO D'ORDRE:     33 INSTANT:   1.650E+01 DUREE MOYENNE:   3.030E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.700000000000e+01 for the sequence number  34
+NUMERO D'ORDRE:     34 INSTANT:   1.700E+01 DUREE MOYENNE:   3.029E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.750000000000e+01 for the sequence number  35
+NUMERO D'ORDRE:     35 INSTANT:   1.750E+01 DUREE MOYENNE:   3.029E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.800000000000e+01 for the sequence number  36
+NUMERO D'ORDRE:     36 INSTANT:   1.800E+01 DUREE MOYENNE:   3.028E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.850000000000e+01 for the sequence number  37
+NUMERO D'ORDRE:     37 INSTANT:   1.850E+01 DUREE MOYENNE:   3.027E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.900000000000e+01 for the sequence number  38
+NUMERO D'ORDRE:     38 INSTANT:   1.900E+01 DUREE MOYENNE:   3.026E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.950000000000e+01 for the sequence number  39
+NUMERO D'ORDRE:     39 INSTANT:   1.950E+01 DUREE MOYENNE:   3.026E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.000000000000e+01 for the sequence number  40
+NUMERO D'ORDRE:     40 INSTANT:   2.000E+01 DUREE MOYENNE:   3.025E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.050000000000e+01 for the sequence number  41
+NUMERO D'ORDRE:     41 INSTANT:   2.050E+01 DUREE MOYENNE:   3.024E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.100000000000e+01 for the sequence number  42
+NUMERO D'ORDRE:     42 INSTANT:   2.100E+01 DUREE MOYENNE:   3.024E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.150000000000e+01 for the sequence number  43
+NUMERO D'ORDRE:     43 INSTANT:   2.150E+01 DUREE MOYENNE:   3.023E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.200000000000e+01 for the sequence number  44
+NUMERO D'ORDRE:     44 INSTANT:   2.200E+01 DUREE MOYENNE:   3.023E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.250000000000e+01 for the sequence number  45
+NUMERO D'ORDRE:     45 INSTANT:   2.250E+01 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.300000000000e+01 for the sequence number  46
+NUMERO D'ORDRE:     46 INSTANT:   2.300E+01 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.350000000000e+01 for the sequence number  47
+NUMERO D'ORDRE:     47 INSTANT:   2.350E+01 DUREE MOYENNE:   3.021E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.400000000000e+01 for the sequence number  48
+NUMERO D'ORDRE:     48 INSTANT:   2.400E+01 DUREE MOYENNE:   3.021E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.450000000000e+01 for the sequence number  49
+NUMERO D'ORDRE:     49 INSTANT:   2.450E+01 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.500000000000e+01 for the sequence number  50
+NUMERO D'ORDRE:     50 INSTANT:   2.500E+01 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.550000000000e+01 for the sequence number  51
+NUMERO D'ORDRE:     51 INSTANT:   2.550E+01 DUREE MOYENNE:   3.039E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.600000000000e+01 for the sequence number  52
+NUMERO D'ORDRE:     52 INSTANT:   2.600E+01 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.650000000000e+01 for the sequence number  53
+NUMERO D'ORDRE:     53 INSTANT:   2.650E+01 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.700000000000e+01 for the sequence number  54
+NUMERO D'ORDRE:     54 INSTANT:   2.700E+01 DUREE MOYENNE:   3.037E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.750000000000e+01 for the sequence number  55
+NUMERO D'ORDRE:     55 INSTANT:   2.750E+01 DUREE MOYENNE:   3.036E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.800000000000e+01 for the sequence number  56
+NUMERO D'ORDRE:     56 INSTANT:   2.800E+01 DUREE MOYENNE:   3.036E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.850000000000e+01 for the sequence number  57
+NUMERO D'ORDRE:     57 INSTANT:   2.850E+01 DUREE MOYENNE:   3.035E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.900000000000e+01 for the sequence number  58
+NUMERO D'ORDRE:     58 INSTANT:   2.900E+01 DUREE MOYENNE:   3.034E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.950000000000e+01 for the sequence number  59
+NUMERO D'ORDRE:     59 INSTANT:   2.950E+01 DUREE MOYENNE:   3.034E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.000000000000e+01 for the sequence number  60
+NUMERO D'ORDRE:     60 INSTANT:   3.000E+01 DUREE MOYENNE:   3.033E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.050000000000e+01 for the sequence number  61
+NUMERO D'ORDRE:     61 INSTANT:   3.050E+01 DUREE MOYENNE:   3.033E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.100000000000e+01 for the sequence number  62
+NUMERO D'ORDRE:     62 INSTANT:   3.100E+01 DUREE MOYENNE:   3.032E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.150000000000e+01 for the sequence number  63
+NUMERO D'ORDRE:     63 INSTANT:   3.150E+01 DUREE MOYENNE:   3.032E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.200000000000e+01 for the sequence number  64
+NUMERO D'ORDRE:     64 INSTANT:   3.200E+01 DUREE MOYENNE:   3.031E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.250000000000e+01 for the sequence number  65
+NUMERO D'ORDRE:     65 INSTANT:   3.250E+01 DUREE MOYENNE:   3.031E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.300000000000e+01 for the sequence number  66
+NUMERO D'ORDRE:     66 INSTANT:   3.300E+01 DUREE MOYENNE:   3.030E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.350000000000e+01 for the sequence number  67
+NUMERO D'ORDRE:     67 INSTANT:   3.350E+01 DUREE MOYENNE:   3.030E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.400000000000e+01 for the sequence number  68
+NUMERO D'ORDRE:     68 INSTANT:   3.400E+01 DUREE MOYENNE:   3.029E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.450000000000e+01 for the sequence number  69
+NUMERO D'ORDRE:     69 INSTANT:   3.450E+01 DUREE MOYENNE:   3.029E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.500000000000e+01 for the sequence number  70
+NUMERO D'ORDRE:     70 INSTANT:   3.500E+01 DUREE MOYENNE:   3.029E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.550000000000e+01 for the sequence number  71
+NUMERO D'ORDRE:     71 INSTANT:   3.550E+01 DUREE MOYENNE:   3.028E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.600000000000e+01 for the sequence number  72
+NUMERO D'ORDRE:     72 INSTANT:   3.600E+01 DUREE MOYENNE:   3.028E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.650000000000e+01 for the sequence number  73
+NUMERO D'ORDRE:     73 INSTANT:   3.650E+01 DUREE MOYENNE:   3.041E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.700000000000e+01 for the sequence number  74
+NUMERO D'ORDRE:     74 INSTANT:   3.700E+01 DUREE MOYENNE:   3.041E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.750000000000e+01 for the sequence number  75
+NUMERO D'ORDRE:     75 INSTANT:   3.750E+01 DUREE MOYENNE:   3.040E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.800000000000e+01 for the sequence number  76
+NUMERO D'ORDRE:     76 INSTANT:   3.800E+01 DUREE MOYENNE:   3.039E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.850000000000e+01 for the sequence number  77
+NUMERO D'ORDRE:     77 INSTANT:   3.850E+01 DUREE MOYENNE:   3.039E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.900000000000e+01 for the sequence number  78
+NUMERO D'ORDRE:     78 INSTANT:   3.900E+01 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  3.950000000000e+01 for the sequence number  79
+NUMERO D'ORDRE:     79 INSTANT:   3.950E+01 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.000000000000e+01 for the sequence number  80
+NUMERO D'ORDRE:     80 INSTANT:   4.000E+01 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.050000000000e+01 for the sequence number  81
+NUMERO D'ORDRE:     81 INSTANT:   4.050E+01 DUREE MOYENNE:   3.037E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.100000000000e+01 for the sequence number  82
+NUMERO D'ORDRE:     82 INSTANT:   4.100E+01 DUREE MOYENNE:   3.037E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.150000000000e+01 for the sequence number  83
+NUMERO D'ORDRE:     83 INSTANT:   4.150E+01 DUREE MOYENNE:   3.036E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.200000000000e+01 for the sequence number  84
+NUMERO D'ORDRE:     84 INSTANT:   4.200E+01 DUREE MOYENNE:   3.036E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.250000000000e+01 for the sequence number  85
+NUMERO D'ORDRE:     85 INSTANT:   4.250E+01 DUREE MOYENNE:   3.035E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.300000000000e+01 for the sequence number  86
+NUMERO D'ORDRE:     86 INSTANT:   4.300E+01 DUREE MOYENNE:   3.035E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.350000000000e+01 for the sequence number  87
+NUMERO D'ORDRE:     87 INSTANT:   4.350E+01 DUREE MOYENNE:   3.034E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.400000000000e+01 for the sequence number  88
+NUMERO D'ORDRE:     88 INSTANT:   4.400E+01 DUREE MOYENNE:   3.034E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.450000000000e+01 for the sequence number  89
+NUMERO D'ORDRE:     89 INSTANT:   4.450E+01 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.500000000000e+01 for the sequence number  90
+NUMERO D'ORDRE:     90 INSTANT:   4.500E+01 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.550000000000e+01 for the sequence number  91
+NUMERO D'ORDRE:     91 INSTANT:   4.550E+01 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.600000000000e+01 for the sequence number  92
+NUMERO D'ORDRE:     92 INSTANT:   4.600E+01 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.650000000000e+01 for the sequence number  93
+NUMERO D'ORDRE:     93 INSTANT:   4.650E+01 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.700000000000e+01 for the sequence number  94
+NUMERO D'ORDRE:     94 INSTANT:   4.700E+01 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.750000000000e+01 for the sequence number  95
+NUMERO D'ORDRE:     95 INSTANT:   4.750E+01 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.800000000000e+01 for the sequence number  96
+NUMERO D'ORDRE:     96 INSTANT:   4.800E+01 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.850000000000e+01 for the sequence number  97
+NUMERO D'ORDRE:     97 INSTANT:   4.850E+01 DUREE MOYENNE:   3.041E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.900000000000e+01 for the sequence number  98
+NUMERO D'ORDRE:     98 INSTANT:   4.900E+01 DUREE MOYENNE:   3.041E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  4.950000000000e+01 for the sequence number  99
+NUMERO D'ORDRE:     99 INSTANT:   4.950E+01 DUREE MOYENNE:   3.040E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.000000000000e+01 for the sequence number  100
+NUMERO D'ORDRE:    100 INSTANT:   5.000E+01 DUREE MOYENNE:   3.040E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.050000000000e+01 for the sequence number  101
+NUMERO D'ORDRE:    101 INSTANT:   5.050E+01 DUREE MOYENNE:   3.040E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.100000000000e+01 for the sequence number  102
+NUMERO D'ORDRE:    102 INSTANT:   5.100E+01 DUREE MOYENNE:   3.039E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.150000000000e+01 for the sequence number  103
+NUMERO D'ORDRE:    103 INSTANT:   5.150E+01 DUREE MOYENNE:   3.039E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.200000000000e+01 for the sequence number  104
+NUMERO D'ORDRE:    104 INSTANT:   5.200E+01 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.250000000000e+01 for the sequence number  105
+NUMERO D'ORDRE:    105 INSTANT:   5.250E+01 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.300000000000e+01 for the sequence number  106
+NUMERO D'ORDRE:    106 INSTANT:   5.300E+01 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.350000000000e+01 for the sequence number  107
+NUMERO D'ORDRE:    107 INSTANT:   5.350E+01 DUREE MOYENNE:   3.037E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.400000000000e+01 for the sequence number  108
+NUMERO D'ORDRE:    108 INSTANT:   5.400E+01 DUREE MOYENNE:   3.037E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.450000000000e+01 for the sequence number  109
+NUMERO D'ORDRE:    109 INSTANT:   5.450E+01 DUREE MOYENNE:   3.037E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.500000000000e+01 for the sequence number  110
+NUMERO D'ORDRE:    110 INSTANT:   5.500E+01 DUREE MOYENNE:   3.036E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.550000000000e+01 for the sequence number  111
+NUMERO D'ORDRE:    111 INSTANT:   5.550E+01 DUREE MOYENNE:   3.036E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.600000000000e+01 for the sequence number  112
+NUMERO D'ORDRE:    112 INSTANT:   5.600E+01 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.650000000000e+01 for the sequence number  113
+NUMERO D'ORDRE:    113 INSTANT:   5.650E+01 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.700000000000e+01 for the sequence number  114
+NUMERO D'ORDRE:    114 INSTANT:   5.700E+01 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.750000000000e+01 for the sequence number  115
+NUMERO D'ORDRE:    115 INSTANT:   5.750E+01 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.800000000000e+01 for the sequence number  116
+NUMERO D'ORDRE:    116 INSTANT:   5.800E+01 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.850000000000e+01 for the sequence number  117
+NUMERO D'ORDRE:    117 INSTANT:   5.850E+01 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.900000000000e+01 for the sequence number  118
+NUMERO D'ORDRE:    118 INSTANT:   5.900E+01 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  5.950000000000e+01 for the sequence number  119
+NUMERO D'ORDRE:    119 INSTANT:   5.950E+01 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.000000000000e+01 for the sequence number  120
+NUMERO D'ORDRE:    120 INSTANT:   6.000E+01 DUREE MOYENNE:   3.042E+00
+#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):     40.96      0.00     38.00
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):    322.01      0.00    326.00
+  # Memory (Mo):    353.10 /    215.25 /    305.78 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0012 user+syst:        365.17S (syst:          2.45S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt164
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0013 Concept of the type:  listr8_sdaster
+  # ------------------------------------------------------------------------------------------
+  LIST_2 = DEFI_LIST_REEL(DEBUT=60.0,
+                          INTERVALLE=_F(JUSQU_A=120.0,
+                                        NOMBRE=120,),
+                          INFO=1,)
+
+  # Memory (Mo):    353.10 /    215.27 /    305.78 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0013 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt177
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0014 Concept of the type:  cham_mater
+  # ------------------------------------------------------------------------------------------
+  MAT_2 = AFFE_MATERIAU(MAILLAGE=MA,
+                        AFFE=(_F(GROUP_MA=('Sub_1', 'Sub_2', 'Sub_3', 'Sub_4', 'Ailes', 'Bride', 'Cordon_1', 'Cordon_3'),
+                                 MATER=(INCO625, ),),
+                              _F(GROUP_MA=('Cordon_2', 'Cordon_4'),
+                                 MATER=(AIR, ),),
+                              ),
+                        INFO=1,)
+
+  # Memory (Mo):    353.10 /    219.01 /    305.78 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0014 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt180
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0015 Concept of the type:  formule
+  # ------------------------------------------------------------------------------------------
+  gold_2 = FORMULE(VALE='goldakHeatSource(X,Y,Z,INST)',
+                   NOM_PARA=('X', 'Y', 'Z', 'INST'),)
+
+  # Memory (Mo):    353.10 /    219.02 /    305.78 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0015 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt183
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0016 Concept of the type:  char_ther
+  # ------------------------------------------------------------------------------------------
+  FLUT_2 = AFFE_CHAR_THER_F(MODELE=MODELE,
+                            SOURCE=_F(GROUP_MA=('Cordon_3', ),
+                                      SOUR=gold_2,),
+                            DOUBLE_LAGRANGE='OUI',
+                            INFO=1,)
+
+  # Memory (Mo):    353.10 /    219.02 /    305.78 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0016 user+syst:          0.03S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt211
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0017 Concept of the type:  evol_ther
+  # ------------------------------------------------------------------------------------------
+  TEMP = THER_LINEAIRE(reuse=TEMP,
+                       MODELE=MODELE,
+                       CHAM_MATER=MAT_2,
+                       EXCIT=_F(CHARGE=FLUT_2,),
+                       ETAT_INIT=_F(EVOL_THER=TEMP,
+                                    PRECISION=1.E-06,
+                                    CRITERE='RELATIF',),
+                       INCREMENT=_F(LIST_INST=LIST_2,
+                                    PRECISION=1.E-06,),
+                       SOLVEUR=_F(METHODE='MULT_FRONT',
+                                  RENUM='METIS',
+                                  NPREC=8,
+                                  STOP_SINGULIER='OUI',
+                                  ELIM_LAGR='NON',),
+                       PARM_THETA=0.57,
+                       ARCHIVAGE=_F(PRECISION=1.E-06,
+                                    CRITERE='RELATIF',),
+                       )
+
+  Le système linéaire à résoudre a 72551 degrés de liberté:
+   - 72551 sont des degrés de liberté physiques
+     (ils sont portés
+par 72551 noeuds du maillage)
+   - 0 sont les couples de paramètres de Lagrange associés
+     aux 0 relations linéaires dualisées.
+  La matrice est de taille 72551 équations.
+  Elle contient 444160 termes non nuls si elle est symétrique et 815769 termes non nuls
+si elle n'est pas symétrique.
+  Soit un taux de remplissage de   0.015 %.
+      Le champ <TEMP> est lu dans ETAT_INIT dans la structure de données résultats de nom <TEMP>
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.050000000000e+01 for the sequence number  121
+NUMERO D'ORDRE:      1 INSTANT:   6.050E+01 DUREE MOYENNE:   4.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.100000000000e+01 for the sequence number  122
+NUMERO D'ORDRE:      2 INSTANT:   6.100E+01 DUREE MOYENNE:   3.500E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.150000000000e+01 for the sequence number  123
+NUMERO D'ORDRE:      3 INSTANT:   6.150E+01 DUREE MOYENNE:   3.333E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.200000000000e+01 for the sequence number  124
+NUMERO D'ORDRE:      4 INSTANT:   6.200E+01 DUREE MOYENNE:   3.250E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.250000000000e+01 for the sequence number  125
+NUMERO D'ORDRE:      5 INSTANT:   6.250E+01 DUREE MOYENNE:   3.200E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.300000000000e+01 for the sequence number  126
+NUMERO D'ORDRE:      6 INSTANT:   6.300E+01 DUREE MOYENNE:   3.167E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.350000000000e+01 for the sequence number  127
+NUMERO D'ORDRE:      7 INSTANT:   6.350E+01 DUREE MOYENNE:   3.143E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.400000000000e+01 for the sequence number  128
+NUMERO D'ORDRE:      8 INSTANT:   6.400E+01 DUREE MOYENNE:   3.125E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.450000000000e+01 for the sequence number  129
+NUMERO D'ORDRE:      9 INSTANT:   6.450E+01 DUREE MOYENNE:   3.111E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.500000000000e+01 for the sequence number  130
+NUMERO D'ORDRE:     10 INSTANT:   6.500E+01 DUREE MOYENNE:   3.100E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.550000000000e+01 for the sequence number  131
+NUMERO D'ORDRE:     11 INSTANT:   6.550E+01 DUREE MOYENNE:   3.091E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.600000000000e+01 for the sequence number  132
+NUMERO D'ORDRE:     12 INSTANT:   6.600E+01 DUREE MOYENNE:   3.083E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.650000000000e+01 for the sequence number  133
+NUMERO D'ORDRE:     13 INSTANT:   6.650E+01 DUREE MOYENNE:   3.077E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.700000000000e+01 for the sequence number  134
+NUMERO D'ORDRE:     14 INSTANT:   6.700E+01 DUREE MOYENNE:   3.071E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.750000000000e+01 for the sequence number  135
+NUMERO D'ORDRE:     15 INSTANT:   6.750E+01 DUREE MOYENNE:   3.067E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.800000000000e+01 for the sequence number  136
+NUMERO D'ORDRE:     16 INSTANT:   6.800E+01 DUREE MOYENNE:   3.062E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.850000000000e+01 for the sequence number  137
+NUMERO D'ORDRE:     17 INSTANT:   6.850E+01 DUREE MOYENNE:   3.059E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.900000000000e+01 for the sequence number  138
+NUMERO D'ORDRE:     18 INSTANT:   6.900E+01 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  6.950000000000e+01 for the sequence number  139
+NUMERO D'ORDRE:     19 INSTANT:   6.950E+01 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.000000000000e+01 for the sequence number  140
+NUMERO D'ORDRE:     20 INSTANT:   7.000E+01 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.050000000000e+01 for the sequence number  141
+NUMERO D'ORDRE:     21 INSTANT:   7.050E+01 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.100000000000e+01 for the sequence number  142
+NUMERO D'ORDRE:     22 INSTANT:   7.100E+01 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.150000000000e+01 for the sequence number  143
+NUMERO D'ORDRE:     23 INSTANT:   7.150E+01 DUREE MOYENNE:   3.087E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.200000000000e+01 for the sequence number  144
+NUMERO D'ORDRE:     24 INSTANT:   7.200E+01 DUREE MOYENNE:   3.083E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.250000000000e+01 for the sequence number  145
+NUMERO D'ORDRE:     25 INSTANT:   7.250E+01 DUREE MOYENNE:   3.080E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.300000000000e+01 for the sequence number  146
+NUMERO D'ORDRE:     26 INSTANT:   7.300E+01 DUREE MOYENNE:   3.077E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.350000000000e+01 for the sequence number  147
+NUMERO D'ORDRE:     27 INSTANT:   7.350E+01 DUREE MOYENNE:   3.074E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.400000000000e+01 for the sequence number  148
+NUMERO D'ORDRE:     28 INSTANT:   7.400E+01 DUREE MOYENNE:   3.071E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.450000000000e+01 for the sequence number  149
+NUMERO D'ORDRE:     29 INSTANT:   7.450E+01 DUREE MOYENNE:   3.069E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.500000000000e+01 for the sequence number  150
+NUMERO D'ORDRE:     30 INSTANT:   7.500E+01 DUREE MOYENNE:   3.067E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.550000000000e+01 for the sequence number  151
+NUMERO D'ORDRE:     31 INSTANT:   7.550E+01 DUREE MOYENNE:   3.065E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.600000000000e+01 for the sequence number  152
+NUMERO D'ORDRE:     32 INSTANT:   7.600E+01 DUREE MOYENNE:   3.062E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.650000000000e+01 for the sequence number  153
+NUMERO D'ORDRE:     33 INSTANT:   7.650E+01 DUREE MOYENNE:   3.061E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.700000000000e+01 for the sequence number  154
+NUMERO D'ORDRE:     34 INSTANT:   7.700E+01 DUREE MOYENNE:   3.059E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.750000000000e+01 for the sequence number  155
+NUMERO D'ORDRE:     35 INSTANT:   7.750E+01 DUREE MOYENNE:   3.057E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.800000000000e+01 for the sequence number  156
+NUMERO D'ORDRE:     36 INSTANT:   7.800E+01 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.850000000000e+01 for the sequence number  157
+NUMERO D'ORDRE:     37 INSTANT:   7.850E+01 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.900000000000e+01 for the sequence number  158
+NUMERO D'ORDRE:     38 INSTANT:   7.900E+01 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  7.950000000000e+01 for the sequence number  159
+NUMERO D'ORDRE:     39 INSTANT:   7.950E+01 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.000000000000e+01 for the sequence number  160
+NUMERO D'ORDRE:     40 INSTANT:   8.000E+01 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.050000000000e+01 for the sequence number  161
+NUMERO D'ORDRE:     41 INSTANT:   8.050E+01 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.100000000000e+01 for the sequence number  162
+NUMERO D'ORDRE:     42 INSTANT:   8.100E+01 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.150000000000e+01 for the sequence number  163
+NUMERO D'ORDRE:     43 INSTANT:   8.150E+01 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.200000000000e+01 for the sequence number  164
+NUMERO D'ORDRE:     44 INSTANT:   8.200E+01 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.250000000000e+01 for the sequence number  165
+NUMERO D'ORDRE:     45 INSTANT:   8.250E+01 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.300000000000e+01 for the sequence number  166
+NUMERO D'ORDRE:     46 INSTANT:   8.300E+01 DUREE MOYENNE:   3.065E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.350000000000e+01 for the sequence number  167
+NUMERO D'ORDRE:     47 INSTANT:   8.350E+01 DUREE MOYENNE:   3.064E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.400000000000e+01 for the sequence number  168
+NUMERO D'ORDRE:     48 INSTANT:   8.400E+01 DUREE MOYENNE:   3.062E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.450000000000e+01 for the sequence number  169
+NUMERO D'ORDRE:     49 INSTANT:   8.450E+01 DUREE MOYENNE:   3.061E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.500000000000e+01 for the sequence number  170
+NUMERO D'ORDRE:     50 INSTANT:   8.500E+01 DUREE MOYENNE:   3.060E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.550000000000e+01 for the sequence number  171
+NUMERO D'ORDRE:     51 INSTANT:   8.550E+01 DUREE MOYENNE:   3.059E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.600000000000e+01 for the sequence number  172
+NUMERO D'ORDRE:     52 INSTANT:   8.600E+01 DUREE MOYENNE:   3.058E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.650000000000e+01 for the sequence number  173
+NUMERO D'ORDRE:     53 INSTANT:   8.650E+01 DUREE MOYENNE:   3.057E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.700000000000e+01 for the sequence number  174
+NUMERO D'ORDRE:     54 INSTANT:   8.700E+01 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.750000000000e+01 for the sequence number  175
+NUMERO D'ORDRE:     55 INSTANT:   8.750E+01 DUREE MOYENNE:   3.055E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.800000000000e+01 for the sequence number  176
+NUMERO D'ORDRE:     56 INSTANT:   8.800E+01 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.850000000000e+01 for the sequence number  177
+NUMERO D'ORDRE:     57 INSTANT:   8.850E+01 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.900000000000e+01 for the sequence number  178
+NUMERO D'ORDRE:     58 INSTANT:   8.900E+01 DUREE MOYENNE:   3.052E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  8.950000000000e+01 for the sequence number  179
+NUMERO D'ORDRE:     59 INSTANT:   8.950E+01 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.000000000000e+01 for the sequence number  180
+NUMERO D'ORDRE:     60 INSTANT:   9.000E+01 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.050000000000e+01 for the sequence number  181
+NUMERO D'ORDRE:     61 INSTANT:   9.050E+01 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.100000000000e+01 for the sequence number  182
+NUMERO D'ORDRE:     62 INSTANT:   9.100E+01 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.150000000000e+01 for the sequence number  183
+NUMERO D'ORDRE:     63 INSTANT:   9.150E+01 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.200000000000e+01 for the sequence number  184
+NUMERO D'ORDRE:     64 INSTANT:   9.200E+01 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.250000000000e+01 for the sequence number  185
+NUMERO D'ORDRE:     65 INSTANT:   9.250E+01 DUREE MOYENNE:   3.046E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.300000000000e+01 for the sequence number  186
+NUMERO D'ORDRE:     66 INSTANT:   9.300E+01 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.350000000000e+01 for the sequence number  187
+NUMERO D'ORDRE:     67 INSTANT:   9.350E+01 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.400000000000e+01 for the sequence number  188
+NUMERO D'ORDRE:     68 INSTANT:   9.400E+01 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.450000000000e+01 for the sequence number  189
+NUMERO D'ORDRE:     69 INSTANT:   9.450E+01 DUREE MOYENNE:   3.058E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.500000000000e+01 for the sequence number  190
+NUMERO D'ORDRE:     70 INSTANT:   9.500E+01 DUREE MOYENNE:   3.057E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.550000000000e+01 for the sequence number  191
+NUMERO D'ORDRE:     71 INSTANT:   9.550E+01 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.600000000000e+01 for the sequence number  192
+NUMERO D'ORDRE:     72 INSTANT:   9.600E+01 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.650000000000e+01 for the sequence number  193
+NUMERO D'ORDRE:     73 INSTANT:   9.650E+01 DUREE MOYENNE:   3.055E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.700000000000e+01 for the sequence number  194
+NUMERO D'ORDRE:     74 INSTANT:   9.700E+01 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.750000000000e+01 for the sequence number  195
+NUMERO D'ORDRE:     75 INSTANT:   9.750E+01 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.800000000000e+01 for the sequence number  196
+NUMERO D'ORDRE:     76 INSTANT:   9.800E+01 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.850000000000e+01 for the sequence number  197
+NUMERO D'ORDRE:     77 INSTANT:   9.850E+01 DUREE MOYENNE:   3.052E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.900000000000e+01 for the sequence number  198
+NUMERO D'ORDRE:     78 INSTANT:   9.900E+01 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  9.950000000000e+01 for the sequence number  199
+NUMERO D'ORDRE:     79 INSTANT:   9.950E+01 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.000000000000e+02 for the sequence number  200
+NUMERO D'ORDRE:     80 INSTANT:   1.000E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.005000000000e+02 for the sequence number  201
+NUMERO D'ORDRE:     81 INSTANT:   1.005E+02 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.010000000000e+02 for the sequence number  202
+NUMERO D'ORDRE:     82 INSTANT:   1.010E+02 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.015000000000e+02 for the sequence number  203
+NUMERO D'ORDRE:     83 INSTANT:   1.015E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.020000000000e+02 for the sequence number  204
+NUMERO D'ORDRE:     84 INSTANT:   1.020E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.025000000000e+02 for the sequence number  205
+NUMERO D'ORDRE:     85 INSTANT:   1.025E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.030000000000e+02 for the sequence number  206
+NUMERO D'ORDRE:     86 INSTANT:   1.030E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.035000000000e+02 for the sequence number  207
+NUMERO D'ORDRE:     87 INSTANT:   1.035E+02 DUREE MOYENNE:   3.046E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.040000000000e+02 for the sequence number  208
+NUMERO D'ORDRE:     88 INSTANT:   1.040E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.045000000000e+02 for the sequence number  209
+NUMERO D'ORDRE:     89 INSTANT:   1.045E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.050000000000e+02 for the sequence number  210
+NUMERO D'ORDRE:     90 INSTANT:   1.050E+02 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.055000000000e+02 for the sequence number  211
+NUMERO D'ORDRE:     91 INSTANT:   1.055E+02 DUREE MOYENNE:   3.055E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.060000000000e+02 for the sequence number  212
+NUMERO D'ORDRE:     92 INSTANT:   1.060E+02 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.065000000000e+02 for the sequence number  213
+NUMERO D'ORDRE:     93 INSTANT:   1.065E+02 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.070000000000e+02 for the sequence number  214
+NUMERO D'ORDRE:     94 INSTANT:   1.070E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.075000000000e+02 for the sequence number  215
+NUMERO D'ORDRE:     95 INSTANT:   1.075E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.080000000000e+02 for the sequence number  216
+NUMERO D'ORDRE:     96 INSTANT:   1.080E+02 DUREE MOYENNE:   3.052E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.085000000000e+02 for the sequence number  217
+NUMERO D'ORDRE:     97 INSTANT:   1.085E+02 DUREE MOYENNE:   3.052E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.090000000000e+02 for the sequence number  218
+NUMERO D'ORDRE:     98 INSTANT:   1.090E+02 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.095000000000e+02 for the sequence number  219
+NUMERO D'ORDRE:     99 INSTANT:   1.095E+02 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.100000000000e+02 for the sequence number  220
+NUMERO D'ORDRE:    100 INSTANT:   1.100E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.105000000000e+02 for the sequence number  221
+NUMERO D'ORDRE:    101 INSTANT:   1.105E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.110000000000e+02 for the sequence number  222
+NUMERO D'ORDRE:    102 INSTANT:   1.110E+02 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.115000000000e+02 for the sequence number  223
+NUMERO D'ORDRE:    103 INSTANT:   1.115E+02 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.120000000000e+02 for the sequence number  224
+NUMERO D'ORDRE:    104 INSTANT:   1.120E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.125000000000e+02 for the sequence number  225
+NUMERO D'ORDRE:    105 INSTANT:   1.125E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.130000000000e+02 for the sequence number  226
+NUMERO D'ORDRE:    106 INSTANT:   1.130E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.135000000000e+02 for the sequence number  227
+NUMERO D'ORDRE:    107 INSTANT:   1.135E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.140000000000e+02 for the sequence number  228
+NUMERO D'ORDRE:    108 INSTANT:   1.140E+02 DUREE MOYENNE:   3.046E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.145000000000e+02 for the sequence number  229
+NUMERO D'ORDRE:    109 INSTANT:   1.145E+02 DUREE MOYENNE:   3.046E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.150000000000e+02 for the sequence number  230
+NUMERO D'ORDRE:    110 INSTANT:   1.150E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.155000000000e+02 for the sequence number  231
+NUMERO D'ORDRE:    111 INSTANT:   1.155E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.160000000000e+02 for the sequence number  232
+NUMERO D'ORDRE:    112 INSTANT:   1.160E+02 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.165000000000e+02 for the sequence number  233
+NUMERO D'ORDRE:    113 INSTANT:   1.165E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.170000000000e+02 for the sequence number  234
+NUMERO D'ORDRE:    114 INSTANT:   1.170E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.175000000000e+02 for the sequence number  235
+NUMERO D'ORDRE:    115 INSTANT:   1.175E+02 DUREE MOYENNE:   3.052E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.180000000000e+02 for the sequence number  236
+NUMERO D'ORDRE:    116 INSTANT:   1.180E+02 DUREE MOYENNE:   3.052E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.185000000000e+02 for the sequence number  237
+NUMERO D'ORDRE:    117 INSTANT:   1.185E+02 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.190000000000e+02 for the sequence number  238
+NUMERO D'ORDRE:    118 INSTANT:   1.190E+02 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.195000000000e+02 for the sequence number  239
+NUMERO D'ORDRE:    119 INSTANT:   1.195E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.200000000000e+02 for the sequence number  240
+NUMERO D'ORDRE:    120 INSTANT:   1.200E+02 DUREE MOYENNE:   3.050E+00
+#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):     41.18      0.00     48.00
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):    322.79      0.00    315.00
+  # Memory (Mo):    432.04 /    290.92 /    379.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0017 user+syst:        365.98S (syst:          2.31S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt164
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0018 Concept of the type:  listr8_sdaster
+  # ------------------------------------------------------------------------------------------
+  LIST_3 = DEFI_LIST_REEL(DEBUT=120.0,
+                          INTERVALLE=_F(JUSQU_A=180.0,
+                                        NOMBRE=120,),
+                          INFO=1,)
+
+  # Memory (Mo):    432.04 /    290.93 /    379.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0018 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt177
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0019 Concept of the type:  cham_mater
+  # ------------------------------------------------------------------------------------------
+  MAT_3 = AFFE_MATERIAU(MAILLAGE=MA,
+                        AFFE=(_F(GROUP_MA=('Sub_1', 'Sub_2', 'Sub_3', 'Sub_4', 'Ailes', 'Bride', 'Cordon_1', 'Cordon_3', 'Cordon_2'),
+                                 MATER=(INCO625, ),),
+                              _F(GROUP_MA=('Cordon_4', ),
+                                 MATER=(AIR, ),),
+                              ),
+                        INFO=1,)
+
+  # Memory (Mo):    432.04 /    294.66 /    379.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0019 user+syst:          0.02S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt180
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0020 Concept of the type:  formule
+  # ------------------------------------------------------------------------------------------
+  gold_3 = FORMULE(VALE='goldakHeatSource(X,Y,Z,INST)',
+                   NOM_PARA=('X', 'Y', 'Z', 'INST'),)
+
+  # Memory (Mo):    432.04 /    294.66 /    379.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0020 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt183
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0021 Concept of the type:  char_ther
+  # ------------------------------------------------------------------------------------------
+  FLUT_3 = AFFE_CHAR_THER_F(MODELE=MODELE,
+                            SOURCE=_F(GROUP_MA=('Cordon_2', ),
+                                      SOUR=gold_3,),
+                            DOUBLE_LAGRANGE='OUI',
+                            INFO=1,)
+
+  # Memory (Mo):    432.04 /    294.67 /    379.31 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0021 user+syst:          0.02S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt211
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0022 Concept of the type:  evol_ther
+  # ------------------------------------------------------------------------------------------
+  TEMP = THER_LINEAIRE(reuse=TEMP,
+                       MODELE=MODELE,
+                       CHAM_MATER=MAT_3,
+                       EXCIT=_F(CHARGE=FLUT_3,),
+                       ETAT_INIT=_F(EVOL_THER=TEMP,
+                                    PRECISION=1.E-06,
+                                    CRITERE='RELATIF',),
+                       INCREMENT=_F(LIST_INST=LIST_3,
+                                    PRECISION=1.E-06,),
+                       SOLVEUR=_F(METHODE='MULT_FRONT',
+                                  RENUM='METIS',
+                                  NPREC=8,
+                                  STOP_SINGULIER='OUI',
+                                  ELIM_LAGR='NON',),
+                       PARM_THETA=0.57,
+                       ARCHIVAGE=_F(PRECISION=1.E-06,
+                                    CRITERE='RELATIF',),
+                       )
+
+  Le système linéaire à résoudre a 72551 degrés de liberté:
+   - 72551 sont des degrés de liberté physiques
+     (ils sont portés
+par 72551 noeuds du maillage)
+   - 0 sont les couples de paramètres de Lagrange associés
+     aux 0 relations linéaires dualisées.
+  La matrice est de taille 72551 équations.
+  Elle contient 444160 termes non nuls si elle est symétrique et 815769 termes non nuls
+si elle n'est pas symétrique.
+  Soit un taux de remplissage de   0.015 %.
+      Le champ <TEMP> est lu dans ETAT_INIT dans la structure de données résultats de nom <TEMP>
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.205000000000e+02 for the sequence number  241
+NUMERO D'ORDRE:      1 INSTANT:   1.205E+02 DUREE MOYENNE:   4.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.210000000000e+02 for the sequence number  242
+NUMERO D'ORDRE:      2 INSTANT:   1.210E+02 DUREE MOYENNE:   3.500E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.215000000000e+02 for the sequence number  243
+NUMERO D'ORDRE:      3 INSTANT:   1.215E+02 DUREE MOYENNE:   3.333E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.220000000000e+02 for the sequence number  244
+NUMERO D'ORDRE:      4 INSTANT:   1.220E+02 DUREE MOYENNE:   3.250E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.225000000000e+02 for the sequence number  245
+NUMERO D'ORDRE:      5 INSTANT:   1.225E+02 DUREE MOYENNE:   3.200E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.230000000000e+02 for the sequence number  246
+NUMERO D'ORDRE:      6 INSTANT:   1.230E+02 DUREE MOYENNE:   3.167E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.235000000000e+02 for the sequence number  247
+NUMERO D'ORDRE:      7 INSTANT:   1.235E+02 DUREE MOYENNE:   3.143E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.240000000000e+02 for the sequence number  248
+NUMERO D'ORDRE:      8 INSTANT:   1.240E+02 DUREE MOYENNE:   3.125E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.245000000000e+02 for the sequence number  249
+NUMERO D'ORDRE:      9 INSTANT:   1.245E+02 DUREE MOYENNE:   3.111E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.250000000000e+02 for the sequence number  250
+NUMERO D'ORDRE:     10 INSTANT:   1.250E+02 DUREE MOYENNE:   3.100E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.255000000000e+02 for the sequence number  251
+NUMERO D'ORDRE:     11 INSTANT:   1.255E+02 DUREE MOYENNE:   3.091E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.260000000000e+02 for the sequence number  252
+NUMERO D'ORDRE:     12 INSTANT:   1.260E+02 DUREE MOYENNE:   3.083E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.265000000000e+02 for the sequence number  253
+NUMERO D'ORDRE:     13 INSTANT:   1.265E+02 DUREE MOYENNE:   3.077E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.270000000000e+02 for the sequence number  254
+NUMERO D'ORDRE:     14 INSTANT:   1.270E+02 DUREE MOYENNE:   3.071E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.275000000000e+02 for the sequence number  255
+NUMERO D'ORDRE:     15 INSTANT:   1.275E+02 DUREE MOYENNE:   3.067E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.280000000000e+02 for the sequence number  256
+NUMERO D'ORDRE:     16 INSTANT:   1.280E+02 DUREE MOYENNE:   3.062E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.285000000000e+02 for the sequence number  257
+NUMERO D'ORDRE:     17 INSTANT:   1.285E+02 DUREE MOYENNE:   3.059E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.290000000000e+02 for the sequence number  258
+NUMERO D'ORDRE:     18 INSTANT:   1.290E+02 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.295000000000e+02 for the sequence number  259
+NUMERO D'ORDRE:     19 INSTANT:   1.295E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.300000000000e+02 for the sequence number  260
+NUMERO D'ORDRE:     20 INSTANT:   1.300E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.305000000000e+02 for the sequence number  261
+NUMERO D'ORDRE:     21 INSTANT:   1.305E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.310000000000e+02 for the sequence number  262
+NUMERO D'ORDRE:     22 INSTANT:   1.310E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.315000000000e+02 for the sequence number  263
+NUMERO D'ORDRE:     23 INSTANT:   1.315E+02 DUREE MOYENNE:   3.087E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.320000000000e+02 for the sequence number  264
+NUMERO D'ORDRE:     24 INSTANT:   1.320E+02 DUREE MOYENNE:   3.083E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.325000000000e+02 for the sequence number  265
+NUMERO D'ORDRE:     25 INSTANT:   1.325E+02 DUREE MOYENNE:   3.080E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.330000000000e+02 for the sequence number  266
+NUMERO D'ORDRE:     26 INSTANT:   1.330E+02 DUREE MOYENNE:   3.077E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.335000000000e+02 for the sequence number  267
+NUMERO D'ORDRE:     27 INSTANT:   1.335E+02 DUREE MOYENNE:   3.074E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.340000000000e+02 for the sequence number  268
+NUMERO D'ORDRE:     28 INSTANT:   1.340E+02 DUREE MOYENNE:   3.071E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.345000000000e+02 for the sequence number  269
+NUMERO D'ORDRE:     29 INSTANT:   1.345E+02 DUREE MOYENNE:   3.069E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.350000000000e+02 for the sequence number  270
+NUMERO D'ORDRE:     30 INSTANT:   1.350E+02 DUREE MOYENNE:   3.067E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.355000000000e+02 for the sequence number  271
+NUMERO D'ORDRE:     31 INSTANT:   1.355E+02 DUREE MOYENNE:   3.065E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.360000000000e+02 for the sequence number  272
+NUMERO D'ORDRE:     32 INSTANT:   1.360E+02 DUREE MOYENNE:   3.062E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.365000000000e+02 for the sequence number  273
+NUMERO D'ORDRE:     33 INSTANT:   1.365E+02 DUREE MOYENNE:   3.061E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.370000000000e+02 for the sequence number  274
+NUMERO D'ORDRE:     34 INSTANT:   1.370E+02 DUREE MOYENNE:   3.059E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.375000000000e+02 for the sequence number  275
+NUMERO D'ORDRE:     35 INSTANT:   1.375E+02 DUREE MOYENNE:   3.057E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.380000000000e+02 for the sequence number  276
+NUMERO D'ORDRE:     36 INSTANT:   1.380E+02 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.385000000000e+02 for the sequence number  277
+NUMERO D'ORDRE:     37 INSTANT:   1.385E+02 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.390000000000e+02 for the sequence number  278
+NUMERO D'ORDRE:     38 INSTANT:   1.390E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.395000000000e+02 for the sequence number  279
+NUMERO D'ORDRE:     39 INSTANT:   1.395E+02 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.400000000000e+02 for the sequence number  280
+NUMERO D'ORDRE:     40 INSTANT:   1.400E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.405000000000e+02 for the sequence number  281
+NUMERO D'ORDRE:     41 INSTANT:   1.405E+02 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.410000000000e+02 for the sequence number  282
+NUMERO D'ORDRE:     42 INSTANT:   1.410E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.415000000000e+02 for the sequence number  283
+NUMERO D'ORDRE:     43 INSTANT:   1.415E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.420000000000e+02 for the sequence number  284
+NUMERO D'ORDRE:     44 INSTANT:   1.420E+02 DUREE MOYENNE:   3.068E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.425000000000e+02 for the sequence number  285
+NUMERO D'ORDRE:     45 INSTANT:   1.425E+02 DUREE MOYENNE:   3.067E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.430000000000e+02 for the sequence number  286
+NUMERO D'ORDRE:     46 INSTANT:   1.430E+02 DUREE MOYENNE:   3.065E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.435000000000e+02 for the sequence number  287
+NUMERO D'ORDRE:     47 INSTANT:   1.435E+02 DUREE MOYENNE:   3.064E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.440000000000e+02 for the sequence number  288
+NUMERO D'ORDRE:     48 INSTANT:   1.440E+02 DUREE MOYENNE:   3.062E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.445000000000e+02 for the sequence number  289
+NUMERO D'ORDRE:     49 INSTANT:   1.445E+02 DUREE MOYENNE:   3.061E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.450000000000e+02 for the sequence number  290
+NUMERO D'ORDRE:     50 INSTANT:   1.450E+02 DUREE MOYENNE:   3.060E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.455000000000e+02 for the sequence number  291
+NUMERO D'ORDRE:     51 INSTANT:   1.455E+02 DUREE MOYENNE:   3.059E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.460000000000e+02 for the sequence number  292
+NUMERO D'ORDRE:     52 INSTANT:   1.460E+02 DUREE MOYENNE:   3.058E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.465000000000e+02 for the sequence number  293
+NUMERO D'ORDRE:     53 INSTANT:   1.465E+02 DUREE MOYENNE:   3.057E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.470000000000e+02 for the sequence number  294
+NUMERO D'ORDRE:     54 INSTANT:   1.470E+02 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.475000000000e+02 for the sequence number  295
+NUMERO D'ORDRE:     55 INSTANT:   1.475E+02 DUREE MOYENNE:   3.055E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.480000000000e+02 for the sequence number  296
+NUMERO D'ORDRE:     56 INSTANT:   1.480E+02 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.485000000000e+02 for the sequence number  297
+NUMERO D'ORDRE:     57 INSTANT:   1.485E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.490000000000e+02 for the sequence number  298
+NUMERO D'ORDRE:     58 INSTANT:   1.490E+02 DUREE MOYENNE:   3.052E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.495000000000e+02 for the sequence number  299
+NUMERO D'ORDRE:     59 INSTANT:   1.495E+02 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.500000000000e+02 for the sequence number  300
+NUMERO D'ORDRE:     60 INSTANT:   1.500E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.505000000000e+02 for the sequence number  301
+NUMERO D'ORDRE:     61 INSTANT:   1.505E+02 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.510000000000e+02 for the sequence number  302
+NUMERO D'ORDRE:     62 INSTANT:   1.510E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.515000000000e+02 for the sequence number  303
+NUMERO D'ORDRE:     63 INSTANT:   1.515E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.520000000000e+02 for the sequence number  304
+NUMERO D'ORDRE:     64 INSTANT:   1.520E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.525000000000e+02 for the sequence number  305
+NUMERO D'ORDRE:     65 INSTANT:   1.525E+02 DUREE MOYENNE:   3.062E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.530000000000e+02 for the sequence number  306
+NUMERO D'ORDRE:     66 INSTANT:   1.530E+02 DUREE MOYENNE:   3.061E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.535000000000e+02 for the sequence number  307
+NUMERO D'ORDRE:     67 INSTANT:   1.535E+02 DUREE MOYENNE:   3.060E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.540000000000e+02 for the sequence number  308
+NUMERO D'ORDRE:     68 INSTANT:   1.540E+02 DUREE MOYENNE:   3.059E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.545000000000e+02 for the sequence number  309
+NUMERO D'ORDRE:     69 INSTANT:   1.545E+02 DUREE MOYENNE:   3.058E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.550000000000e+02 for the sequence number  310
+NUMERO D'ORDRE:     70 INSTANT:   1.550E+02 DUREE MOYENNE:   3.057E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.555000000000e+02 for the sequence number  311
+NUMERO D'ORDRE:     71 INSTANT:   1.555E+02 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.560000000000e+02 for the sequence number  312
+NUMERO D'ORDRE:     72 INSTANT:   1.560E+02 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.565000000000e+02 for the sequence number  313
+NUMERO D'ORDRE:     73 INSTANT:   1.565E+02 DUREE MOYENNE:   3.055E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.570000000000e+02 for the sequence number  314
+NUMERO D'ORDRE:     74 INSTANT:   1.570E+02 DUREE MOYENNE:   3.054E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.575000000000e+02 for the sequence number  315
+NUMERO D'ORDRE:     75 INSTANT:   1.575E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.580000000000e+02 for the sequence number  316
+NUMERO D'ORDRE:     76 INSTANT:   1.580E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.585000000000e+02 for the sequence number  317
+NUMERO D'ORDRE:     77 INSTANT:   1.585E+02 DUREE MOYENNE:   3.052E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.590000000000e+02 for the sequence number  318
+NUMERO D'ORDRE:     78 INSTANT:   1.590E+02 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.595000000000e+02 for the sequence number  319
+NUMERO D'ORDRE:     79 INSTANT:   1.595E+02 DUREE MOYENNE:   3.051E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.600000000000e+02 for the sequence number  320
+NUMERO D'ORDRE:     80 INSTANT:   1.600E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.605000000000e+02 for the sequence number  321
+NUMERO D'ORDRE:     81 INSTANT:   1.605E+02 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.610000000000e+02 for the sequence number  322
+NUMERO D'ORDRE:     82 INSTANT:   1.610E+02 DUREE MOYENNE:   3.049E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.615000000000e+02 for the sequence number  323
+NUMERO D'ORDRE:     83 INSTANT:   1.615E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.620000000000e+02 for the sequence number  324
+NUMERO D'ORDRE:     84 INSTANT:   1.620E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.625000000000e+02 for the sequence number  325
+NUMERO D'ORDRE:     85 INSTANT:   1.625E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.630000000000e+02 for the sequence number  326
+NUMERO D'ORDRE:     86 INSTANT:   1.630E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.635000000000e+02 for the sequence number  327
+NUMERO D'ORDRE:     87 INSTANT:   1.635E+02 DUREE MOYENNE:   3.046E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.640000000000e+02 for the sequence number  328
+NUMERO D'ORDRE:     88 INSTANT:   1.640E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.645000000000e+02 for the sequence number  329
+NUMERO D'ORDRE:     89 INSTANT:   1.645E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.650000000000e+02 for the sequence number  330
+NUMERO D'ORDRE:     90 INSTANT:   1.650E+02 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.655000000000e+02 for the sequence number  331
+NUMERO D'ORDRE:     91 INSTANT:   1.655E+02 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.660000000000e+02 for the sequence number  332
+NUMERO D'ORDRE:     92 INSTANT:   1.660E+02 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.665000000000e+02 for the sequence number  333
+NUMERO D'ORDRE:     93 INSTANT:   1.665E+02 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.670000000000e+02 for the sequence number  334
+NUMERO D'ORDRE:     94 INSTANT:   1.670E+02 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.675000000000e+02 for the sequence number  335
+NUMERO D'ORDRE:     95 INSTANT:   1.675E+02 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.680000000000e+02 for the sequence number  336
+NUMERO D'ORDRE:     96 INSTANT:   1.680E+02 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.685000000000e+02 for the sequence number  337
+NUMERO D'ORDRE:     97 INSTANT:   1.685E+02 DUREE MOYENNE:   3.041E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.690000000000e+02 for the sequence number  338
+NUMERO D'ORDRE:     98 INSTANT:   1.690E+02 DUREE MOYENNE:   3.041E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.695000000000e+02 for the sequence number  339
+NUMERO D'ORDRE:     99 INSTANT:   1.695E+02 DUREE MOYENNE:   3.040E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.700000000000e+02 for the sequence number  340
+NUMERO D'ORDRE:    100 INSTANT:   1.700E+02 DUREE MOYENNE:   3.040E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.705000000000e+02 for the sequence number  341
+NUMERO D'ORDRE:    101 INSTANT:   1.705E+02 DUREE MOYENNE:   3.040E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.710000000000e+02 for the sequence number  342
+NUMERO D'ORDRE:    102 INSTANT:   1.710E+02 DUREE MOYENNE:   3.039E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.715000000000e+02 for the sequence number  343
+NUMERO D'ORDRE:    103 INSTANT:   1.715E+02 DUREE MOYENNE:   3.039E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.720000000000e+02 for the sequence number  344
+NUMERO D'ORDRE:    104 INSTANT:   1.720E+02 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.725000000000e+02 for the sequence number  345
+NUMERO D'ORDRE:    105 INSTANT:   1.725E+02 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.730000000000e+02 for the sequence number  346
+NUMERO D'ORDRE:    106 INSTANT:   1.730E+02 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.735000000000e+02 for the sequence number  347
+NUMERO D'ORDRE:    107 INSTANT:   1.735E+02 DUREE MOYENNE:   3.047E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.740000000000e+02 for the sequence number  348
+NUMERO D'ORDRE:    108 INSTANT:   1.740E+02 DUREE MOYENNE:   3.046E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.745000000000e+02 for the sequence number  349
+NUMERO D'ORDRE:    109 INSTANT:   1.745E+02 DUREE MOYENNE:   3.046E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.750000000000e+02 for the sequence number  350
+NUMERO D'ORDRE:    110 INSTANT:   1.750E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.755000000000e+02 for the sequence number  351
+NUMERO D'ORDRE:    111 INSTANT:   1.755E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.760000000000e+02 for the sequence number  352
+NUMERO D'ORDRE:    112 INSTANT:   1.760E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.765000000000e+02 for the sequence number  353
+NUMERO D'ORDRE:    113 INSTANT:   1.765E+02 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.770000000000e+02 for the sequence number  354
+NUMERO D'ORDRE:    114 INSTANT:   1.770E+02 DUREE MOYENNE:   3.044E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.775000000000e+02 for the sequence number  355
+NUMERO D'ORDRE:    115 INSTANT:   1.775E+02 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.780000000000e+02 for the sequence number  356
+NUMERO D'ORDRE:    116 INSTANT:   1.780E+02 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.785000000000e+02 for the sequence number  357
+NUMERO D'ORDRE:    117 INSTANT:   1.785E+02 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.790000000000e+02 for the sequence number  358
+NUMERO D'ORDRE:    118 INSTANT:   1.790E+02 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.795000000000e+02 for the sequence number  359
+NUMERO D'ORDRE:    119 INSTANT:   1.795E+02 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.800000000000e+02 for the sequence number  360
+NUMERO D'ORDRE:    120 INSTANT:   1.800E+02 DUREE MOYENNE:   3.042E+00
+#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):     41.27      0.00     40.00
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):    321.67      0.00    324.00
+  # Memory (Mo):    498.95 /    362.26 /    452.57 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0022 user+syst:        364.78S (syst:          2.67S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt164
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0023 Concept of the type:  listr8_sdaster
+  # ------------------------------------------------------------------------------------------
+  LIST_4 = DEFI_LIST_REEL(DEBUT=180.0,
+                          INTERVALLE=_F(JUSQU_A=240.0,
+                                        NOMBRE=120,),
+                          INFO=1,)
+
+  # Memory (Mo):    498.95 /    362.27 /    452.57 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0023 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt173
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0024 Concept of the type:  cham_mater
+  # ------------------------------------------------------------------------------------------
+  MAT_4 = AFFE_MATERIAU(MAILLAGE=MA,
+                        AFFE=_F(GROUP_MA=('Sub_1', 'Sub_2', 'Sub_3', 'Sub_4', 'Ailes', 'Bride', 'Cordon_1', 'Cordon_3', 'Cordon_2', 'Cordon_4'),
+                                MATER=(INCO625, ),),
+                        INFO=1,)
+
+  # Memory (Mo):    498.95 /    364.28 /    452.57 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0024 user+syst:          0.02S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt180
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0025 Concept of the type:  formule
+  # ------------------------------------------------------------------------------------------
+  gold_4 = FORMULE(VALE='goldakHeatSource(X,Y,Z,INST)',
+                   NOM_PARA=('X', 'Y', 'Z', 'INST'),)
+
+  # Memory (Mo):    498.95 /    364.28 /    452.57 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0025 user+syst:          0.00S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt183
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0026 Concept of the type:  char_ther
+  # ------------------------------------------------------------------------------------------
+  FLUT_4 = AFFE_CHAR_THER_F(MODELE=MODELE,
+                            SOURCE=_F(GROUP_MA=('Cordon_4', ),
+                                      SOUR=gold_4,),
+                            DOUBLE_LAGRANGE='OUI',
+                            INFO=1,)
+
+  # Memory (Mo):    498.95 /    364.29 /    452.57 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0026 user+syst:          0.02S (syst:          0.00S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt211
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0027 Concept of the type:  evol_ther
+  # ------------------------------------------------------------------------------------------
+  TEMP = THER_LINEAIRE(reuse=TEMP,
+                       MODELE=MODELE,
+                       CHAM_MATER=MAT_4,
+                       EXCIT=_F(CHARGE=FLUT_4,),
+                       ETAT_INIT=_F(EVOL_THER=TEMP,
+                                    PRECISION=1.E-06,
+                                    CRITERE='RELATIF',),
+                       INCREMENT=_F(LIST_INST=LIST_4,
+                                    PRECISION=1.E-06,),
+                       SOLVEUR=_F(METHODE='MULT_FRONT',
+                                  RENUM='METIS',
+                                  NPREC=8,
+                                  STOP_SINGULIER='OUI',
+                                  ELIM_LAGR='NON',),
+                       PARM_THETA=0.57,
+                       ARCHIVAGE=_F(PRECISION=1.E-06,
+                                    CRITERE='RELATIF',),
+                       )
+
+  Le système linéaire à résoudre a 72551 degrés de liberté:
+   - 72551 sont des degrés de liberté physiques
+     (ils sont portés
+par 72551 noeuds du maillage)
+   - 0 sont les couples de paramètres de Lagrange associés
+     aux 0 relations linéaires dualisées.
+  La matrice est de taille 72551 équations.
+  Elle contient 444160 termes non nuls si elle est symétrique et 815769 termes non nuls
+si elle n'est pas symétrique.
+  Soit un taux de remplissage de   0.015 %.
+      Le champ <TEMP> est lu dans ETAT_INIT dans la structure de données résultats de nom <TEMP>
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.805000000000e+02 for the sequence number  361
+NUMERO D'ORDRE:      1 INSTANT:   1.805E+02 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.810000000000e+02 for the sequence number  362
+NUMERO D'ORDRE:      2 INSTANT:   1.810E+02 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.815000000000e+02 for the sequence number  363
+NUMERO D'ORDRE:      3 INSTANT:   1.815E+02 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.820000000000e+02 for the sequence number  364
+NUMERO D'ORDRE:      4 INSTANT:   1.820E+02 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.825000000000e+02 for the sequence number  365
+NUMERO D'ORDRE:      5 INSTANT:   1.825E+02 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.830000000000e+02 for the sequence number  366
+NUMERO D'ORDRE:      6 INSTANT:   1.830E+02 DUREE MOYENNE:   3.000E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.835000000000e+02 for the sequence number  367
+NUMERO D'ORDRE:      7 INSTANT:   1.835E+02 DUREE MOYENNE:   3.143E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.840000000000e+02 for the sequence number  368
+NUMERO D'ORDRE:      8 INSTANT:   1.840E+02 DUREE MOYENNE:   3.125E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.845000000000e+02 for the sequence number  369
+NUMERO D'ORDRE:      9 INSTANT:   1.845E+02 DUREE MOYENNE:   3.111E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.850000000000e+02 for the sequence number  370
+NUMERO D'ORDRE:     10 INSTANT:   1.850E+02 DUREE MOYENNE:   3.100E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.855000000000e+02 for the sequence number  371
+NUMERO D'ORDRE:     11 INSTANT:   1.855E+02 DUREE MOYENNE:   3.091E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.860000000000e+02 for the sequence number  372
+NUMERO D'ORDRE:     12 INSTANT:   1.860E+02 DUREE MOYENNE:   3.083E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.865000000000e+02 for the sequence number  373
+NUMERO D'ORDRE:     13 INSTANT:   1.865E+02 DUREE MOYENNE:   3.077E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.870000000000e+02 for the sequence number  374
+NUMERO D'ORDRE:     14 INSTANT:   1.870E+02 DUREE MOYENNE:   3.071E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.875000000000e+02 for the sequence number  375
+NUMERO D'ORDRE:     15 INSTANT:   1.875E+02 DUREE MOYENNE:   3.067E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.880000000000e+02 for the sequence number  376
+NUMERO D'ORDRE:     16 INSTANT:   1.880E+02 DUREE MOYENNE:   3.062E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.885000000000e+02 for the sequence number  377
+NUMERO D'ORDRE:     17 INSTANT:   1.885E+02 DUREE MOYENNE:   3.059E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.890000000000e+02 for the sequence number  378
+NUMERO D'ORDRE:     18 INSTANT:   1.890E+02 DUREE MOYENNE:   3.056E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.895000000000e+02 for the sequence number  379
+NUMERO D'ORDRE:     19 INSTANT:   1.895E+02 DUREE MOYENNE:   3.053E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.900000000000e+02 for the sequence number  380
+NUMERO D'ORDRE:     20 INSTANT:   1.900E+02 DUREE MOYENNE:   3.050E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.905000000000e+02 for the sequence number  381
+NUMERO D'ORDRE:     21 INSTANT:   1.905E+02 DUREE MOYENNE:   3.048E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.910000000000e+02 for the sequence number  382
+NUMERO D'ORDRE:     22 INSTANT:   1.910E+02 DUREE MOYENNE:   3.045E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.915000000000e+02 for the sequence number  383
+NUMERO D'ORDRE:     23 INSTANT:   1.915E+02 DUREE MOYENNE:   3.043E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.920000000000e+02 for the sequence number  384
+NUMERO D'ORDRE:     24 INSTANT:   1.920E+02 DUREE MOYENNE:   3.042E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.925000000000e+02 for the sequence number  385
+NUMERO D'ORDRE:     25 INSTANT:   1.925E+02 DUREE MOYENNE:   3.040E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.930000000000e+02 for the sequence number  386
+NUMERO D'ORDRE:     26 INSTANT:   1.930E+02 DUREE MOYENNE:   3.038E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.935000000000e+02 for the sequence number  387
+NUMERO D'ORDRE:     27 INSTANT:   1.935E+02 DUREE MOYENNE:   3.037E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.940000000000e+02 for the sequence number  388
+NUMERO D'ORDRE:     28 INSTANT:   1.940E+02 DUREE MOYENNE:   3.036E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.945000000000e+02 for the sequence number  389
+NUMERO D'ORDRE:     29 INSTANT:   1.945E+02 DUREE MOYENNE:   3.034E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.950000000000e+02 for the sequence number  390
+NUMERO D'ORDRE:     30 INSTANT:   1.950E+02 DUREE MOYENNE:   3.033E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.955000000000e+02 for the sequence number  391
+NUMERO D'ORDRE:     31 INSTANT:   1.955E+02 DUREE MOYENNE:   3.032E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.960000000000e+02 for the sequence number  392
+NUMERO D'ORDRE:     32 INSTANT:   1.960E+02 DUREE MOYENNE:   3.031E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.965000000000e+02 for the sequence number  393
+NUMERO D'ORDRE:     33 INSTANT:   1.965E+02 DUREE MOYENNE:   3.030E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.970000000000e+02 for the sequence number  394
+NUMERO D'ORDRE:     34 INSTANT:   1.970E+02 DUREE MOYENNE:   3.029E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.975000000000e+02 for the sequence number  395
+NUMERO D'ORDRE:     35 INSTANT:   1.975E+02 DUREE MOYENNE:   3.029E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.980000000000e+02 for the sequence number  396
+NUMERO D'ORDRE:     36 INSTANT:   1.980E+02 DUREE MOYENNE:   3.028E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.985000000000e+02 for the sequence number  397
+NUMERO D'ORDRE:     37 INSTANT:   1.985E+02 DUREE MOYENNE:   3.027E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.990000000000e+02 for the sequence number  398
+NUMERO D'ORDRE:     38 INSTANT:   1.990E+02 DUREE MOYENNE:   3.026E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  1.995000000000e+02 for the sequence number  399
+NUMERO D'ORDRE:     39 INSTANT:   1.995E+02 DUREE MOYENNE:   3.026E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.000000000000e+02 for the sequence number  400
+NUMERO D'ORDRE:     40 INSTANT:   2.000E+02 DUREE MOYENNE:   3.025E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.005000000000e+02 for the sequence number  401
+NUMERO D'ORDRE:     41 INSTANT:   2.005E+02 DUREE MOYENNE:   3.024E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.010000000000e+02 for the sequence number  402
+NUMERO D'ORDRE:     42 INSTANT:   2.010E+02 DUREE MOYENNE:   3.024E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.015000000000e+02 for the sequence number  403
+NUMERO D'ORDRE:     43 INSTANT:   2.015E+02 DUREE MOYENNE:   3.023E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.020000000000e+02 for the sequence number  404
+NUMERO D'ORDRE:     44 INSTANT:   2.020E+02 DUREE MOYENNE:   3.023E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.025000000000e+02 for the sequence number  405
+NUMERO D'ORDRE:     45 INSTANT:   2.025E+02 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.030000000000e+02 for the sequence number  406
+NUMERO D'ORDRE:     46 INSTANT:   2.030E+02 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.035000000000e+02 for the sequence number  407
+NUMERO D'ORDRE:     47 INSTANT:   2.035E+02 DUREE MOYENNE:   3.021E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.040000000000e+02 for the sequence number  408
+NUMERO D'ORDRE:     48 INSTANT:   2.040E+02 DUREE MOYENNE:   3.021E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.045000000000e+02 for the sequence number  409
+NUMERO D'ORDRE:     49 INSTANT:   2.045E+02 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.050000000000e+02 for the sequence number  410
+NUMERO D'ORDRE:     50 INSTANT:   2.050E+02 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.055000000000e+02 for the sequence number  411
+NUMERO D'ORDRE:     51 INSTANT:   2.055E+02 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.060000000000e+02 for the sequence number  412
+NUMERO D'ORDRE:     52 INSTANT:   2.060E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.065000000000e+02 for the sequence number  413
+NUMERO D'ORDRE:     53 INSTANT:   2.065E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.070000000000e+02 for the sequence number  414
+NUMERO D'ORDRE:     54 INSTANT:   2.070E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.075000000000e+02 for the sequence number  415
+NUMERO D'ORDRE:     55 INSTANT:   2.075E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.080000000000e+02 for the sequence number  416
+NUMERO D'ORDRE:     56 INSTANT:   2.080E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.085000000000e+02 for the sequence number  417
+NUMERO D'ORDRE:     57 INSTANT:   2.085E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.090000000000e+02 for the sequence number  418
+NUMERO D'ORDRE:     58 INSTANT:   2.090E+02 DUREE MOYENNE:   3.017E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.095000000000e+02 for the sequence number  419
+NUMERO D'ORDRE:     59 INSTANT:   2.095E+02 DUREE MOYENNE:   3.017E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.100000000000e+02 for the sequence number  420
+NUMERO D'ORDRE:     60 INSTANT:   2.100E+02 DUREE MOYENNE:   3.017E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.105000000000e+02 for the sequence number  421
+NUMERO D'ORDRE:     61 INSTANT:   2.105E+02 DUREE MOYENNE:   3.016E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.110000000000e+02 for the sequence number  422
+NUMERO D'ORDRE:     62 INSTANT:   2.110E+02 DUREE MOYENNE:   3.016E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.115000000000e+02 for the sequence number  423
+NUMERO D'ORDRE:     63 INSTANT:   2.115E+02 DUREE MOYENNE:   3.016E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.120000000000e+02 for the sequence number  424
+NUMERO D'ORDRE:     64 INSTANT:   2.120E+02 DUREE MOYENNE:   3.016E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.125000000000e+02 for the sequence number  425
+NUMERO D'ORDRE:     65 INSTANT:   2.125E+02 DUREE MOYENNE:   3.015E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.130000000000e+02 for the sequence number  426
+NUMERO D'ORDRE:     66 INSTANT:   2.130E+02 DUREE MOYENNE:   3.015E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.135000000000e+02 for the sequence number  427
+NUMERO D'ORDRE:     67 INSTANT:   2.135E+02 DUREE MOYENNE:   3.015E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.140000000000e+02 for the sequence number  428
+NUMERO D'ORDRE:     68 INSTANT:   2.140E+02 DUREE MOYENNE:   3.015E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.145000000000e+02 for the sequence number  429
+NUMERO D'ORDRE:     69 INSTANT:   2.145E+02 DUREE MOYENNE:   3.014E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.150000000000e+02 for the sequence number  430
+NUMERO D'ORDRE:     70 INSTANT:   2.150E+02 DUREE MOYENNE:   3.029E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.155000000000e+02 for the sequence number  431
+NUMERO D'ORDRE:     71 INSTANT:   2.155E+02 DUREE MOYENNE:   3.028E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.160000000000e+02 for the sequence number  432
+NUMERO D'ORDRE:     72 INSTANT:   2.160E+02 DUREE MOYENNE:   3.028E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.165000000000e+02 for the sequence number  433
+NUMERO D'ORDRE:     73 INSTANT:   2.165E+02 DUREE MOYENNE:   3.027E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.170000000000e+02 for the sequence number  434
+NUMERO D'ORDRE:     74 INSTANT:   2.170E+02 DUREE MOYENNE:   3.027E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.175000000000e+02 for the sequence number  435
+NUMERO D'ORDRE:     75 INSTANT:   2.175E+02 DUREE MOYENNE:   3.027E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.180000000000e+02 for the sequence number  436
+NUMERO D'ORDRE:     76 INSTANT:   2.180E+02 DUREE MOYENNE:   3.026E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.185000000000e+02 for the sequence number  437
+NUMERO D'ORDRE:     77 INSTANT:   2.185E+02 DUREE MOYENNE:   3.026E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.190000000000e+02 for the sequence number  438
+NUMERO D'ORDRE:     78 INSTANT:   2.190E+02 DUREE MOYENNE:   3.026E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.195000000000e+02 for the sequence number  439
+NUMERO D'ORDRE:     79 INSTANT:   2.195E+02 DUREE MOYENNE:   3.025E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.200000000000e+02 for the sequence number  440
+NUMERO D'ORDRE:     80 INSTANT:   2.200E+02 DUREE MOYENNE:   3.025E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.205000000000e+02 for the sequence number  441
+NUMERO D'ORDRE:     81 INSTANT:   2.205E+02 DUREE MOYENNE:   3.025E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.210000000000e+02 for the sequence number  442
+NUMERO D'ORDRE:     82 INSTANT:   2.210E+02 DUREE MOYENNE:   3.024E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.215000000000e+02 for the sequence number  443
+NUMERO D'ORDRE:     83 INSTANT:   2.215E+02 DUREE MOYENNE:   3.024E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.220000000000e+02 for the sequence number  444
+NUMERO D'ORDRE:     84 INSTANT:   2.220E+02 DUREE MOYENNE:   3.024E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.225000000000e+02 for the sequence number  445
+NUMERO D'ORDRE:     85 INSTANT:   2.225E+02 DUREE MOYENNE:   3.024E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.230000000000e+02 for the sequence number  446
+NUMERO D'ORDRE:     86 INSTANT:   2.230E+02 DUREE MOYENNE:   3.023E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.235000000000e+02 for the sequence number  447
+NUMERO D'ORDRE:     87 INSTANT:   2.235E+02 DUREE MOYENNE:   3.023E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.240000000000e+02 for the sequence number  448
+NUMERO D'ORDRE:     88 INSTANT:   2.240E+02 DUREE MOYENNE:   3.023E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.245000000000e+02 for the sequence number  449
+NUMERO D'ORDRE:     89 INSTANT:   2.245E+02 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.250000000000e+02 for the sequence number  450
+NUMERO D'ORDRE:     90 INSTANT:   2.250E+02 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.255000000000e+02 for the sequence number  451
+NUMERO D'ORDRE:     91 INSTANT:   2.255E+02 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.260000000000e+02 for the sequence number  452
+NUMERO D'ORDRE:     92 INSTANT:   2.260E+02 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.265000000000e+02 for the sequence number  453
+NUMERO D'ORDRE:     93 INSTANT:   2.265E+02 DUREE MOYENNE:   3.022E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.270000000000e+02 for the sequence number  454
+NUMERO D'ORDRE:     94 INSTANT:   2.270E+02 DUREE MOYENNE:   3.021E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.275000000000e+02 for the sequence number  455
+NUMERO D'ORDRE:     95 INSTANT:   2.275E+02 DUREE MOYENNE:   3.021E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.280000000000e+02 for the sequence number  456
+NUMERO D'ORDRE:     96 INSTANT:   2.280E+02 DUREE MOYENNE:   3.021E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.285000000000e+02 for the sequence number  457
+NUMERO D'ORDRE:     97 INSTANT:   2.285E+02 DUREE MOYENNE:   3.021E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.290000000000e+02 for the sequence number  458
+NUMERO D'ORDRE:     98 INSTANT:   2.290E+02 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.295000000000e+02 for the sequence number  459
+NUMERO D'ORDRE:     99 INSTANT:   2.295E+02 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.300000000000e+02 for the sequence number  460
+NUMERO D'ORDRE:    100 INSTANT:   2.300E+02 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.305000000000e+02 for the sequence number  461
+NUMERO D'ORDRE:    101 INSTANT:   2.305E+02 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.310000000000e+02 for the sequence number  462
+NUMERO D'ORDRE:    102 INSTANT:   2.310E+02 DUREE MOYENNE:   3.020E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.315000000000e+02 for the sequence number  463
+NUMERO D'ORDRE:    103 INSTANT:   2.315E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.320000000000e+02 for the sequence number  464
+NUMERO D'ORDRE:    104 INSTANT:   2.320E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.325000000000e+02 for the sequence number  465
+NUMERO D'ORDRE:    105 INSTANT:   2.325E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.330000000000e+02 for the sequence number  466
+NUMERO D'ORDRE:    106 INSTANT:   2.330E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.335000000000e+02 for the sequence number  467
+NUMERO D'ORDRE:    107 INSTANT:   2.335E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.340000000000e+02 for the sequence number  468
+NUMERO D'ORDRE:    108 INSTANT:   2.340E+02 DUREE MOYENNE:   3.019E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.345000000000e+02 for the sequence number  469
+NUMERO D'ORDRE:    109 INSTANT:   2.345E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.350000000000e+02 for the sequence number  470
+NUMERO D'ORDRE:    110 INSTANT:   2.350E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.355000000000e+02 for the sequence number  471
+NUMERO D'ORDRE:    111 INSTANT:   2.355E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.360000000000e+02 for the sequence number  472
+NUMERO D'ORDRE:    112 INSTANT:   2.360E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.365000000000e+02 for the sequence number  473
+NUMERO D'ORDRE:    113 INSTANT:   2.365E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.370000000000e+02 for the sequence number  474
+NUMERO D'ORDRE:    114 INSTANT:   2.370E+02 DUREE MOYENNE:   3.018E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.375000000000e+02 for the sequence number  475
+NUMERO D'ORDRE:    115 INSTANT:   2.375E+02 DUREE MOYENNE:   3.017E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.380000000000e+02 for the sequence number  476
+NUMERO D'ORDRE:    116 INSTANT:   2.380E+02 DUREE MOYENNE:   3.017E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.385000000000e+02 for the sequence number  477
+NUMERO D'ORDRE:    117 INSTANT:   2.385E+02 DUREE MOYENNE:   3.017E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.390000000000e+02 for the sequence number  478
+NUMERO D'ORDRE:    118 INSTANT:   2.390E+02 DUREE MOYENNE:   3.017E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.395000000000e+02 for the sequence number  479
+NUMERO D'ORDRE:    119 INSTANT:   2.395E+02 DUREE MOYENNE:   3.017E+00
+
+ Filing of the fields 
+    Field stored  TEMP at time  2.400000000000e+02 for the sequence number  480
+NUMERO D'ORDRE:    120 INSTANT:   2.400E+02 DUREE MOYENNE:   3.017E+00
+#1      Resolution des systemes lineaires                 CPU (USER+SYST/SYST/ELAPS):     41.37      0.00     36.00
+#2      Calculs elementaires et assemblages               CPU (USER+SYST/SYST/ELAPS):    319.29      0.00    323.00
+  # Memory (Mo):    574.03 /    439.68 /    522.92 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0027 user+syst:        362.67S (syst:          2.64S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt214
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0028 Concept of the type:  -
+  # ------------------------------------------------------------------------------------------
+  IMPR_RESU(FORMAT='MED',
+            UNITE=80,
+            VERSION_MED='3.3.1',
+            RESU=_F(RESULTAT=TEMP,
+                    GROUP_MA=('Sub_1', 'Sub_2', 'Sub_3', 'Sub_4', 'Ailes', 'Bride', 'Cordon_1', 'Cordon_3', 'Cordon_2', 'Cordon_4'),
+                    NOM_CHAM=('TEMP', ),
+                    INFO_MAILLAGE='NON',
+                    IMPR_NOM_VARI='OUI',),
+            PROC0='OUI',
+            INFO=1,)
+
+
+Création du fichier au format MED 3.3.1.
+  # Memory (Mo):    574.03 /    444.69 /    522.92 /     75.45 (VmPeak / VmSize / Optimum / Minimum)
+  # Fin orders No:  0028 user+syst:          2.45S (syst:          0.69S, Elaps:          0.00S)
+  # ------------------------------------------------------------------------------------------
+
+.. __stg1_txt216
+  # ------------------------------------------------------------------------------------------
+  # Commands No:  0029 Concept of the type:  -
+  # ------------------------------------------------------------------------------------------
+  FIN(FORMAT_HDF='NON',
+      RETASSAGE='NON',
+      INFO_RESU='OUI',
+      PROC0='OUI',
+      )
+
+   
+   !-----------------------------------------------------------------!
+   ! <I> <CATAMESS_89>                                               !
+   !                                                                 !
+   !  List of warnings emitted during the execution of computation.  !
+   !                                                                 !
+   !  Warnings which you chose to ignore of are preceded by (*).     !
+   !                                                                 !
+   ! Number of occurrences for each warning:                         !
+   !              SUPERVIS2_2          emitted    1 time             !
+   !              SUPERVIS_1           emitted    1 time             !
+   !-----------------------------------------------------------------!
+   
+
+ ======>
+
+ STRUCTURE DU CONCEPT TEMP     CALCULE POUR        481 NUMEROS D'ORDRE
+
+ LISTE DES NOMS SYMBOLIQUES:
+ ! ---------- !----------------!
+ ! NUME_ORDRE !      TEMP      !
+ ! ---------- !----------------!
+ !          0 !     TEMP_R     !
+ !        ... !      ...       !
+ !        480 !     TEMP_R     !
+ ! ---------- !----------------!
+
+ LISTE DES NOMS DE VARIABLES D'ACCES:
+                                      INST             DE TYPE  R
+
+ LISTE DES NOMS DE PARAMETRES:
+ ! ---------- !----------------!----------------!----------------!----------------!----------------!----------------!----------------!
+ ! NUME_ORDRE !     MODELE     !    CHAMPMAT    !    CARAELEM    !     EXCIT      !   ITER_GLOB    !   PARM_THETA   !     DELTAT     !
+ ! ---------- !----------------!----------------!----------------!----------------!----------------!----------------!----------------!
+ !          0 !       K8       !       K8       !       K8       !      K24       !       I        !       R        !       R        !
+ !        ... !      ...       !      ...       !      ...       !      ...       !      ...       !      ...       !      ...       !
+ !        480 !       K8       !       K8       !       K8       !      K24       !       I        !       R        !       R        !
+ ! ---------- !----------------!----------------!----------------!----------------!----------------!----------------!----------------!
+ ---------------------------------------------------------------------------
+ Concepts de la base: G
+    Nom       Type                 Taille (Mo)         Nombre      Nombre de
+                                                     d'objets       segments
+    TOTAL                               373.71           1675           1839
+  
+    MA         MAILLAGE_SDASTER          35.31             34             58
+    INCO625    MATER_SDASTER              0.00              5              5
+    AIR        MATER_SDASTER              0.00              5              5
+    LIST_1     LISTR8_SDASTER             0.00              6              6
+    MODELE     MODELE_SDASTER            12.32              8             13
+    MAT_1      CHAM_MATER                 3.46              6             11
+    gold_1     FORMULE                    0.00              3              3
+    FLUT_1     CHAR_THER                  0.00              8             13
+    ECH        CHAR_THER                  5.94             13             23
+    TEMP       EVOL_THER                280.71           1473           1497
+    LIST_2     LISTR8_SDASTER             0.00              6              6
+    MAT_2      CHAM_MATER                 3.46              6             11
+    gold_2     FORMULE                    0.00              3              3
+    FLUT_2     CHAR_THER                  0.00              8             13
+    LIST_3     LISTR8_SDASTER             0.00              6              6
+    MAT_3      CHAM_MATER                 3.47              6             11
+    gold_3     FORMULE                    0.00              3              3
+    FLUT_3     CHAR_THER                  0.00              8             13
+    LIST_4     LISTR8_SDASTER             0.00              6              6
+    MAT_4      CHAM_MATER                 1.73              6             11
+    gold_4     FORMULE                    0.00              3              3
+    FLUT_4     CHAR_THER                  0.00              8             13
+    &FOZERO                               0.00              2              2
+    &&_NUM_C                              0.00              1              1
+    &CATA.AC                              0.00              2              4
+    &CATA.CL                              0.60              1              3
+    &CATA.GD                              0.14              4             11
+    &CATA.ME                              0.20              2              4
+    &CATA.OP                              0.30              4             19
+    &CATA.PH                              0.00              1              1
+    &CATA.PR                              0.00              2              4
+    &CATA.TE                             26.02             17             42
+    &CATA.TH                              0.01              2              4
+    &CATA.TM                              0.01              7             11
+ ---------------------------------------------------------------------------
+
+
+     Nom de la base                          :  GLOBALE
+     Nombre d'enregistrements utilisés       :  646
+     Nombre
+d'enregistrements maximum        :  62914
+     Longueur d'enregistrement (octets)      :  819200
+     Nombre total d'accès en
+lecture         :  7
+     Volume des accès en lecture             :          5.47 Mo.
+     Nombre total d'accès en écriture        :
+ 662
+     Volume des accès en écriture            :        517.19 Mo.
+     Nombre d'identificateurs utilisés       :  1847
+    
+Taille maximum du répertoire            :  2000
+     Pourcentage d'utilisation du répertoire :  92 %
+
+
+     Nom de la base                          :  VOLATILE
+     Nombre d'enregistrements utilisés       :  3
+     Nombre
+d'enregistrements maximum        :  62914
+     Longueur d'enregistrement (octets)      :  819200
+     Nombre total d'accès en
+lecture         :  0
+     Volume des accès en lecture             :          0.00 Mo.
+     Nombre total d'accès en écriture        :
+ 6
+     Volume des accès en écriture            :          4.69 Mo.
+     Nombre d'identificateurs utilisés       :  731
+     Taille
+maximum du répertoire            :  2000
+     Pourcentage d'utilisation du répertoire :  36 %
+
+ <FIN> Arrêt normal dans "FIN".
+ <I> <FIN> ARRET NORMAL DANS "FIN" PAR APPEL A "JEFINI".
+
+ The memory requested from launching is over-estimated, it is of 10490.00 Mo. 
+ The peak report used is of 574.03 Mo. 
+ 
+
+
+     Nom de la base                          :  ELEMBASE
+     Nombre d'enregistrements utilisés       :  43
+     Nombre
+d'enregistrements maximum        :  512
+     Longueur d'enregistrement (octets)      :  819200
+     Nombre total d'accès en lecture 
+       :  60
+     Volume des accès en lecture             :         46.88 Mo.
+     Nombre total d'accès en écriture        :  0
+    
+Volume des accès en écriture            :          0.00 Mo.
+     Nombre d'identificateurs utilisés       :  123
+     Taille maximum
+du répertoire            :  300
+     Pourcentage d'utilisation du répertoire :  41 %
+  
+ <I> <FIN> MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :                      75.45 Mo
+ <I> <FIN> MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :                     522.92 Mo
+ <I> <FIN> MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS LORS DE L'EXECUTION :     574.03 Mo
+  
+ <I>       FERMETURE DES BASES EFFECTUEE
+  
+   STATISTIQUES CONCERNANT L'ALLOCATION DYNAMIQUE :
+     TAILLE CUMULEE MAXIMUM            :                  523  Mo.
+     TAILLE CUMULEE LIBEREE            :                15608  Mo.
+     NOMBRE TOTAL D'ALLOCATIONS        :              9815858
+     NOMBRE TOTAL DE LIBERATIONS       :              9815838
+     APPELS AU MECANISME DE LIBERATION :                    0
+     TAILLE MEMOIRE CUMULEE RECUPEREE  :                    0  Mo.
+     VOLUME DES LECTURES               :                    0  Mo.
+     VOLUME DES ECRITURES              :                    0  Mo.
+  
+   MEMOIRE JEVEUX MINIMALE REQUISE POUR L'EXECUTION :      75.45 Mo
+     - IMPOSE DE NOMBREUX ACCES DISQUE
+     - RALENTIT LA VITESSE D'EXECUTION
+   MEMOIRE JEVEUX OPTIMALE REQUISE POUR L'EXECUTION :     522.92 Mo
+     - LIMITE LES ACCES DISQUE
+     - AMELIORE LA VITESSE D'EXECUTION
+   MAXIMUM DE MEMOIRE UTILISEE PAR LE PROCESSUS     :     574.03 Mo
+     - COMPREND LA MEMOIRE CONSOMMEE PAR  JEVEUX, 
+       LE SUPERVISEUR PYTHON, LES LIBRAIRIES EXTERNES
+  
+ <I>       FIN D'EXECUTION LE : LU-13-MAI -2024 20:21:26
+
+
+  <I> Informations sur les temps d'exécution
+      Temps cpu user total                 1451.56 s
+      Temps cpu systeme total                11.09 s
+      Temps elapsed total                     0.00 s
+      Temps restant                        8100.00 s
+
+
+ The signup of the saved base is (with the address 0): 
+  4261eeeac3a73bf257dddde2655768f53c22fc38 
+
+ ********************************************************************************
+ * COMMAND                  :       USER :     SYSTEM :   USER+SYS :    ELAPSED *
+ ********************************************************************************
+ * init (jdc)               :    1451.58 :      11.09 :    1462.67 :       0.00 *
+ *  . compile               :       0.00 :       0.00 :       0.00 :       0.00 *
+ *  . exec_compile          :    1451.44 :      11.06 :    1462.50 :       0.00 *
+ * DEBUT                    :       0.02 :       0.02 :       0.03 :       0.00 *
+ * LIRE_MAILLAGE            :       0.52 :       0.03 :       0.55 :       0.00 *
+ * DEFI_MATERIAU            :       0.00 :       0.00 :       0.00 :       0.00 *
+ * DEFI_MATERIAU            :       0.00 :       0.00 :       0.00 :       0.00 *
+ * DEFI_LIST_REEL           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_MODELE              :       0.12 :       0.02 :       0.14 :       0.00 *
+ * AFFE_MATERIAU            :       0.02 :       0.00 :       0.02 :       0.00 *
+ * FORMULE                  :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_CHAR_THER_F         :       0.02 :       0.00 :       0.02 :       0.00 *
+ * AFFE_CHAR_THER           :       0.19 :       0.05 :       0.23 :       0.00 *
+ * THER_LINEAIRE            :     362.72 :       2.45 :     365.17 :       0.00 *
+ * DEFI_LIST_REEL           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_MATERIAU            :       0.00 :       0.00 :       0.00 :       0.00 *
+ * FORMULE                  :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_CHAR_THER_F         :       0.03 :       0.00 :       0.03 :       0.00 *
+ * THER_LINEAIRE            :     363.67 :       2.31 :     365.98 :       0.00 *
+ * DEFI_LIST_REEL           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_MATERIAU            :       0.02 :       0.00 :       0.02 :       0.00 *
+ * FORMULE                  :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_CHAR_THER_F         :       0.02 :       0.00 :       0.02 :       0.00 *
+ * THER_LINEAIRE            :     362.11 :       2.67 :     364.78 :       0.00 *
+ * DEFI_LIST_REEL           :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_MATERIAU            :       0.02 :       0.00 :       0.02 :       0.00 *
+ * FORMULE                  :       0.00 :       0.00 :       0.00 :       0.00 *
+ * AFFE_CHAR_THER_F         :       0.02 :       0.00 :       0.02 :       0.00 *
+ * THER_LINEAIRE            :     360.03 :       2.64 :     362.67 :       0.00 *
+ * IMPR_RESU                :       1.77 :       0.69 :       2.45 :       0.00 *
+ * FIN                      :       0.05 :       0.19 :       0.23 :       0.00 *
+ *  . part Superviseur      :       0.28 :       0.05 :       0.33 :       0.00 *
+ *  . part Fortran          :    1451.28 :      11.05 :    1462.33 :       0.00 *
+ ********************************************************************************
+ * TOTAL_JOB                :    1451.56 :      11.09 :    1462.66 :       0.00 *
+ ********************************************************************************
+
+--- End of the execution
+EXECUTION_CODE_ASTER_EXIT_9390=0
