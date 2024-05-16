@@ -5,7 +5,7 @@
 
 DEBUT(PAR_LOT='NON',);
 
-ArrG	= ('Sub_1','Sub_2','Sub_3','Sub_4','Ailes','Bride','Cordon_1','Cordon_2','Cordon_3','Cordon_4',)
+ArrG	= ('Ailes','Bride','Cordon_1','Cordon_2','Cordon_3','Cordon_4',)
 Xo		= (		2.25,	97.75,	97.75,	2.25,)
 Yo		= (		97.75,	2.25,	97.75,	2.25,)
 Zo		= (		-0.75,	-0.75,	-0.75,	-0.75,)
@@ -173,14 +173,14 @@ for i in range(1, 5):
 		                  AFFE=(_F(GROUP_MA = (ArrG[:]),MATER=INCO625,),),);
 	else:
 		MAT[i]=AFFE_MATERIAU(MAILLAGE=MA,
-		                  AFFE=(_F(GROUP_MA = (ArrG[:i+6]),MATER=INCO625,),
-		                        _F(GROUP_MA = (ArrG[i+6:]),MATER=AIR,),),);
+		                  AFFE=(_F(GROUP_MA = (ArrG[:i+2]),MATER=INCO625,),
+		                        _F(GROUP_MA = (ArrG[i+2:]),MATER=AIR,),),);
 
 	# Voir ouvrage simulation du soudage pour plus de precision Goldak ou Bergheau
 	gold[i] = FORMULE(VALE='goldakHeatSource(X,Y,Z,INST)',goldakHeatSource=goldakHeatSource,NOM_PARA=('X','Y','Z','INST',),);
 
 	# La source de chaleur est appliquee sur la partie du maillage en interaction avec l'arc.
-	FLUT[i]=AFFE_CHAR_THER_F(MODELE=MODELE,SOURCE=_F(GROUP_MA=(ArrG[i+5]),SOUR = gold[i],),);
+	FLUT[i]=AFFE_CHAR_THER_F(MODELE=MODELE,SOURCE=_F(GROUP_MA=(ArrG[i+1]),SOUR = gold[i],),);
 
 	# Introduction de l echange entre l air et la plaque q = coef_h ( T_piece - Temp_ext )
 	if i == 1:

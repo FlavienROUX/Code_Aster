@@ -5,8 +5,8 @@
 
 DEBUT();
 
-incrNO	= 4
-ArrG	= ('Sub_1','Sub_2','Sub_3','Sub_4','Ailes','Bride','Cordon_1','Cordon_2','Cordon_3','Cordon_4',)
+incrNO	= 20
+ArrG	= ('Ailes','Bride','Cordon_1','Cordon_2','Cordon_3','Cordon_4',)
 tf		= (0.,	60.,	120.,	180.,	240.,)
 LIST	= {}
 LISTA	= {}
@@ -50,8 +50,8 @@ for i in range(1, 5):
 							NOM_VARC='TEMP',EVOL=PROJ_TH,VALE_REF=20.,),),);
 	else :
 		MAT[i]=AFFE_MATERIAU(MAILLAGE=MAM,
-							AFFE=(_F(GROUP_MA = (ArrG[:i+6]),MATER=INCOM,),
-							_F(GROUP_MA = (ArrG[i+6:]),MATER=AIRM,),),
+							AFFE=(_F(GROUP_MA = (ArrG[:i+2]),MATER=INCOM,),
+							_F(GROUP_MA = (ArrG[i+2:]),MATER=AIRM,),),
 		               	    AFFE_VARC=(_F(TOUT='OUI',
 							NOM_VARC='TEMP',EVOL=PROJ_TH,VALE_REF=20.,),),);
 	
