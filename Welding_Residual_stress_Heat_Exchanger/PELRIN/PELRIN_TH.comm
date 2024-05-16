@@ -5,7 +5,10 @@
 
 DEBUT(PAR_LOT='NON',);
 
+# Groupes de maillage pour les différents éléments de la soudure
 ArrG	= ('Sub_All','Ailes','Bride','Cordon_1','Cordon_2','Cordon_3','Cordon_4','Cordon_5','Cordon_6','Cordon_7','Cordon_8','Cordon_9','Cordon_10','Cordon_11','Cordon_12',)
+
+# Position de départ pour chaque soudures
 Xo		= (		65.92,	34.08,	97.75,	2.25,	34.08,	65.92,	97.75,	2.25,	2.25,	97.75,	97.75,	2.25,)
 Yo		= (		97.75,	2.25,	34.08,	65.92,	97.75,	2.25,	65.92,	34.08,	97.75,	2.25,	97.75,	2.25,)
 Zo		= (		-0.75,	-0.75,	-0.75,	-0.75,	-0.75,	-0.75,	-0.75,	-0.75,	-0.75,	-0.75,	-0.75,	-0.75,)
@@ -13,11 +16,11 @@ tf		= (0.,	20.,	40.,	60.,	80.,	100.,	120.,	140.,	160.,	180.,	200.,	220.,	240.,)
 
 # Parametres de soudage
 v         = 200./60.	   	# Vitesse de soudage en mm/s
-eta       = 0.8				# Coef de soudage TIG
-U         = 10.    			# en V
-I         = 65.    			# en A
-tm        = 2.     			# temps de mainitien en s
-ts        = 31.83/v+tm		# temps de soudage en s
+eta       = 0.8				# Coefficient de soudage TIG
+U         = 10.    			# Tension en volts (V)
+I         = 65.    			# Courant en ampères (A)
+tm        = 2.     			# Temps de maintien en secondes (s)
+ts        = 31.83/v+tm		# Temps de soudage total en secondes (s)
 
 # Variable pour forme de flux de chaleur (goldak)
 ang       = 45./180*pi    	# Angle pour la rotation en rad
@@ -31,14 +34,16 @@ Qw        = eta*U*I			# en W
 Coeff     = 6*sqrt(3)*ff*Qw/(a*b*cf*pi*sqrt(pi))
 Coefr     = 6*sqrt(3)*fr*Qw/(a*b*cr*pi*sqrt(pi))
 
+# Dictionnaires pour stocker les données
 MAT		= {}
 LIST	= {}
 gold	= {}
 FLUT	= {}
 
+# Boucle pour chaque soudure
 for i in range(1, 13):
 	
-	# Definition des goldak
+	# Définition des sources de chaleur de Goldak pour les 4 axes (x+/x-/y-/y+) et attribution pour chaque soudure
 	if   i in (1,5,9):
 		def goldakHeatSource(X, Y, Z, t):
 			yy = cos(ang)*(Y-Yo[i-1])-sin(ang)*(Z-Zo[i-1])
@@ -166,7 +171,7 @@ for i in range(1, 13):
 	# Definition des instants de calcul pour une analyse non lineraire
 	LIST[i]=DEFI_LIST_REEL(DEBUT=tf[i-1],INTERVALLE=(_F(JUSQU_A=tf[i],NOMBRE=40,),),);
 
-	# Affectation du materiau au group
+	# Affectation du materiau au group (Air pour les codrons qui ne sont pas encore soudée) 
 	if i == 12:
 		MAT[i]=AFFE_MATERIAU(MAILLAGE=MA,
 		                  AFFE=(_F(TOUT='OUI',MATER=INCO625,),),);
@@ -175,7 +180,7 @@ for i in range(1, 13):
 		                  AFFE=(_F(GROUP_MA = (ArrG[:i+3]),MATER=INCO625,),
 		                        _F(GROUP_MA = (ArrG[i+3:]),MATER=AIR,),),);
 
-	# Voir ouvrage simulation du soudage pour plus de precision Goldak ou Bergheau
+	# Voir ouvrage simulation du soudage pour plus de precision Goldak
 	gold[i] = FORMULE(VALE='goldakHeatSource(X,Y,Z,INST)',goldakHeatSource=goldakHeatSource,NOM_PARA=('X','Y','Z','INST',),);
 
 	# La source de chaleur est appliquee sur la partie du maillage en interaction avec l'arc.
