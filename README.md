@@ -23,6 +23,6 @@ We have tested four different welding sequences:
  - [Stress Analysis Video](https://www.youtube.com/watch?v=1fVS58XEzYo)
 
 **4. PELERIN ALT**
- - [Thermal Analysis Video]()
- - [Strain Analysis Video]()
- - [Stress Analysis Video]()
+ - [Thermal Analysis Video](https://www.youtube.com/watch?v=F-1UKGxdmNA)
+ - [Strain Analysis Video](https://www.youtube.com/watch?v=d8dSUvung2I)
+ - [Stress Analysis Video](https://www.youtube.com/watch?v=hRDoKJAD-Po)
