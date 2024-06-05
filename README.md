@@ -26,3 +26,6 @@ We have tested four different welding sequences:
  - [Thermal Analysis Video](https://www.youtube.com/watch?v=F-1UKGxdmNA)
  - [Strain Analysis Video](https://www.youtube.com/watch?v=d8dSUvung2I)
  - [Stress Analysis Video](https://www.youtube.com/watch?v=hRDoKJAD-Po)
+
+We have used goldak for the heat source
+[Goldak Video](https://www.youtube.com/shorts/sz5DaXmiYOw)
