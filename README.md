@@ -5,6 +5,9 @@ Collection of Code Aster project
 
 This project aims to minimize residual stress by studying different welding sequences. 
 
+We have used goldak for the heat source
+[Goldak Video](https://www.youtube.com/shorts/sz5DaXmiYOw)
+
 We have tested four different welding sequences:
 
 **1. TOUR**
@@ -27,5 +30,4 @@ We have tested four different welding sequences:
  - [Strain Analysis Video](https://www.youtube.com/watch?v=d8dSUvung2I)
  - [Stress Analysis Video](https://www.youtube.com/watch?v=hRDoKJAD-Po)
 
-We have used goldak for the heat source
-[Goldak Video](https://www.youtube.com/shorts/sz5DaXmiYOw)
+
